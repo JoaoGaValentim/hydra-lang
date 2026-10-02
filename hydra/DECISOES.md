@@ -208,6 +208,13 @@ Formato curto:
 - Consequências: 36/39 exemplos com saída idêntica JVM≡JS (faltam `listOf`/`setOf`/`readLine`/campos = Fase 5/v2, com erro honesto). Regressões cobertas em `JvmBackendE2ETest`/`JsBackendE2ETest`; `IrTest.enumAndMatch` alinhado a "enum = String".
 - Data: 2026-10-02
 
+### D-HYD-029 — stdlib mínima vira op de IR com tipo de elemento (Fase 5)
+- Contexto: os built-ins documentados (`listOf`, `mapOf`, `setOf`, `readLine`) e a superfície de coleção (`xs[i]`, `.length`, `.contains`, for-in) falhavam ou caíam em runtime nos backends; o parser já tinha um bug silencioso (`xs[0]` virava `get(0)` sem alvo). Sem stdlib, metade do corpus não roda.
+- Decisão: built-ins de coleção/IO são **ops do IR tipadas** (`NewList`/`NewSet`/`NewMap` com tipos de elemento, `IndexGet(collectionType, resultType)`, `Length(subjectType)`, `Contains(collectionType, valueType)`, `IterInit/IterNext`, `ReadLine`), não chamadas para um runtime escondido — cada backend mapeia para o tipo nativo (JVM: ArrayList/LinkedHashSet/LinkedHashMap + box/unbox de Long/Double/Boolean; JS: Array/Set/Map com `has`, e `keys()` para for-in de Map). `a to b` só existe dentro de `mapOf` (fora disso é erro honesto); Set não é indexável; `for k in map` itera chaves nos dois alvos (paridade). Tipos de coleção são `List<T>`/`Set<T>`/`Map<K,V>` no IR (nome canônico, parsing dos argumentos no `Ir.Type`).
+- Alternativas descartadas: runtime `kof.*` em arquivo separado (segundo lugar para a mesma verdade); coleções como `Any` (perde paridade de impressão e unbox); operador `in` de membro (idioma Kof usa `contains` — uma forma por conceito).
+- Consequências: **corpus 40/40 JVM≡JS**; `hydra run 25-imports.hy` lê stdin nos dois alvos (node com `redirectInput(INHERIT)`); testes de IR/JVM/JS cobrem coleções, indexação, `to`, readLine. Campos (`type`) e lambda continuam v2.
+- Data: 2026-10-02
+
 ---
 
 *Novas decisões entram aqui no ciclo em que forem tomadas (seção 8, passo 8).*

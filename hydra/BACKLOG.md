@@ -54,7 +54,10 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
-| F5-01 | todo | L | F3 | Revisar módulos com orçamento: uma API por conceito; gap codes por alvo. |
+| F5-01 | feito | L | F3 | Stdlib mínima: `listOf`/`setOf`/`mapOf`+`to`, `xs[i]`, `.length`, `.contains`, for-in real, `readLine` — ops tipadas no IR (D-HYD-029); corpus 40/40 JVM≡JS. |
+| F5-02 | todo | M | F5-01 | Módulos `kof.io`/`kof.log` como `.hy` + `hydra build` multi-arquivo. |
+| F5-03 | todo | L | F5-01 | `type`/campos no runtime (JVM/JS v2) — exemplos 04/05/10/30. |
+| F5-04 | todo | M | F5-01 | Lambda (`(x) -> expr` / trailing) no IR + backends — exemplos 17/18/29/33/40. |
 
 ## Fase 6 — Ferramentas
 

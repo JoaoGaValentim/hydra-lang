@@ -1,31 +1,30 @@
 # STATE — Hydra
 
-**Última atualização:** 2026-10-02 (Ciclo 16 — match/enum/paridade corrigidos)
-**Fase atual:** 6 fechada; F5 stdlib é a próxima
+**Última atualização:** 2026-10-02 (Ciclo 17 — Fase 5 stdlib de coleções + IO)
+**Fase atual:** 5 (stdlib) em andamento; 6 fechada
 **Operador:** MiMo 2.5 (engenheiro-chefe autônomo)
 
 ---
 
 ## Em que estou
 
-- Repo: `https://github.com/JoaoValentim/hydra-lang` (ver remoto: `JoaoGaValentim/hydra-lang`).
-- Fases 2–4 fechadas no subset; F6 completa (check/run/migrate/fmt/new/test).
-- `compiler/`: **205/205 testes verdes**.
-- Paridade de corpus: **36/39** exemplos com saída idêntica JVM≡JS; os 3 restantes
-  são stdlib v1 (`listOf`/`setOf`/`readLine`) com erro honesto, não silêncio.
+- Repo: `https://github.com/JoaoGaValentim/hydra-lang`.
+- Fases 2–4 fechadas no subset; F6 completa; F5 (coleções/IO) entregue.
+- `compiler/`: **213/213 testes verdes**.
+- Paridade de corpus: **40/40** exemplos com saída idêntica JVM≡JS.
 - CI: `structure` + `upstream-compile` + `hydra-compiler`.
 
 ## O que funciona
 
 - Lexer/parser/diagnósticos HYP001..013; paridade AST com Kof.
-- IR + backends JVM e JS; paridade de alvos no subset (try/catch, assert,
-  throw String, concat universal, match com literais/guardas/bindings,
-  enum=String, retorno de cauda inferido).
+- IR + backends JVM e JS; paridade total do corpus (try/catch, assert,
+  throw String, concat, match completo, enum=String, retorno de cauda,
+  coleções tipadas, indexação, for-in, readLine).
 - **Migrator** (F4): `.kf` → `.hy` + corpus Kof.
 - **CLI** (F6): `hydra check|run|test|new|migrate|fmt|version` (`bin/hydra`).
 - **Formatter** (F6-01b): reprint canônico + `//` por linha (D-HYD-026).
 - **Test runner** (F6-01b): `test "nome" { assert(…) }` → PASS/FAIL, exit != 0,
-  JVM e JS; `assert` é op de IR (D-HYD-027).
+  JVM e JS (D-HYD-027).
 
 ## Pipeline atual
 
@@ -41,19 +40,18 @@ CLI: hydra check | run | test | new | migrate | fmt
 
 ## Limites v1 (honestos)
 
-- Campos/objetos (`LoadField`), lambda e `application` main: erro honesto (v2).
-- Stdlib de coleções (`listOf`/`setOf`/`readLine`): Fase 5 — hoje o backend
-  emite a chamada e falha em runtime; o IR ainda não bloqueia.
+- Campos/objetos (`LoadField`/`NewObject`), lambda e `application` main: erro
+  honesto (v2) — exemplos 04/05/10/17/18/22/23/29/30/33/37/40.
+- Concorrência `spawn`/`await`: IR rejeita (v2).
 - Native: **BLQ-02** (macOS).
 - Migrator: finally/do-while/break/implements/generics/arrays → MIG0xx.
 - CLI: migração não preserva comentários Kof.
 
 ## Próxima ação
 
-1. **Fase 5**: stdlib com orçamento — `listOf`/`setOf`/`mapOf`/`readLine` no IR
-   (ou rejeição honesta no IR antes do backend; decidir na fase).
-2. Backend JVM v2: `type`/campos (exemplos 04/05/10/30) e lambda.
-3. `hydra build` (hydra.toml multi-arquivo) quando a stdlib pedir.
+1. **Backend JVM/JS v2**: `type`/campos (04/05/10/30), lambda (17/18/29/33/40).
+2. `hydra build` (hydra.toml multi-arquivo) + imports com resolução real.
+3. F5 restante: `kof.io`/`kof.log` como módulos .hy (padrão da stdlib).
 
 ## Comandos
 
@@ -61,7 +59,7 @@ CLI: hydra check | run | test | new | migrate | fmt
 cd compiler && mvn -B test
 (cd compiler && mvn -B -DskipTests package) && bin/hydra check hydra/exemplos/01-hello.hy
 bin/hydra new /tmp/app && bin/hydra test /tmp/app/tests
-bin/hydra test hydra/exemplos/26-teste.hy
+echo Mel | bin/hydra run hydra/exemplos/25-imports.hy
 for f in hydra/exemplos/*.hy; do diff <(bin/hydra run $f) <(bin/hydra run $f --js); done
 gh run list --repo JoaoGaValentim/hydra-lang --limit 5
 ```
@@ -78,3 +76,4 @@ gh run list --repo JoaoGaValentim/hydra-lang --limit 5
 - Ciclo 14: **F6-01b fmt canônico + preservação de //.**
 - Ciclo 15: **F6-01b new/test + assert no IR + paridade try/catch/bool (Fase 6 fechada).**
 - Ciclo 16: **match/enum/POP tipados + retorno de cauda (D-HYD-028); corpus JVM≡JS 36/39.**
+- Ciclo 17: **Fase 5 stdlib de coleções + IO; corpus 40/40 JVM≡JS; 213/213 (D-HYD-029).**

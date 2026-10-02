@@ -22,6 +22,7 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 - **Ciclo 14** | Fase 6 | Feito: **F6-01b fechado** — `Formatter` reprint canônico da AST + `hydra fmt` (D-HYD-026); `FormatterTest` 57/57; CLI fmt em `CliTest` 15/15; **176/176**; commit `cfe31bc`; CI `37021269907` verde. | Verificado: `mvn -B test` → BUILD SUCCESS **176/176**; `fmt(fmt(x))==fmt(x)` no corpus; `//` preservado por linha. | Decisão: **D-HYD-026** fmt = AST-printer com comentários por linha; `for x in` sem val. | Próximo: F6-01b restante (`new`/`test`) ou F5 stdlib.
 - **Ciclo 15** | Fase 6 | Feito: **F6-01b completo** — `assert` vira op de IR; throw/catch String em JVM/JS (bug real de pareamento try/catch do ASM corrigido); concat universal via `ToString`; paridade bool/float; `TestRunner` (harness na AST) + `hydra test <arquivo\|dir> [--js]` + `hydra new`; **198/198**; **Fase 6 fechada**. | Verificado: `mvn -B test` → BUILD SUCCESS **198/198**; smoke `bin/hydra new` + `run` + `test` (JVM e JS) com PASS/FAIL e exit code corretos. | Decisão: **D-HYD-027** assert no IR, erro String fim-a-fim, pareamento de regiões try por fila. | Próximo: Fase 5 stdlib com orçamento.
 - **Ciclo 16** | Fase 3/6 | Feito: **varredura de paridade do corpus expôs bugs silenciosos** — `match` ignorava literais/tipos/guardas/bindings; `Pop` de long/double emitia `POP` (1 slot) → `VerifyError`; match-expr usava temp `Any`; sujeito reavaliado por braço; retorno de cauda sem anotação virava void; enum em assinatura virava objeto. Corrigidos no IR (D-HYD-028); corpus **36/39 JVM≡JS** (3 restantes = stdlib v1, erro honesto); **205/205**. | Verificado: `mvn -B test` → BUILD SUCCESS **205/205**; script de paridade por exemplo (diff de stdout+exit JVM vs JS). | Decisão: **D-HYD-028** match com blocos de teste dedicados, enum=String no runtime, `Pop(type)`, retorno de cauda inferido. | Próximo: Fase 5 stdlib (`listOf`/`setOf`/`mapOf`/`readLine`).
+- **Ciclo 17** | Fase 5 | Feito: **stdlib de coleções + IO** — `listOf`/`setOf`/`mapOf` (`a to b`), `xs[i]`, `.length`, `.contains`, for-in real (List/Set/Map/String), `readLine()`; ops IR dedicadas (NewList/NewSet/NewMap/IndexGet/Length/Contains/IterInit/IterNext/ReadLine) com tipos de elemento; JVM com coleções java + box/unbox tipado, JS com arrays/Map/Set + iterador; parser: `xs[0]` não perde mais o alvo (bug silencioso) e `to`; **corpus 40/40 JVM≡JS**; **213/213**. | Verificado: `mvn -B test` → BUILD SUCCESS **213/213**; `echo Mel | bin/hydra run 25-imports.hy` idêntico nos dois alvos; script de paridade 40/40. | Decisão: D-HYD-029 (stdlib mínima com uma forma por conceito; collections viram ops do IR, não runtime oculto). | Próximo: backend JVM v2 (type/campos/lambda) e `hydra build` multi-arquivo.
 
 ### Métricas
 
@@ -37,8 +38,8 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 | Baseline testes (foco, macOS) | 808 / 155F / 8E / 26S |
 | Baseline Native (macOS) | inexecutável (as Apple ≠ GNU ELF) |
 | CI Hydra | **VERDE** — structure + upstream-compile + hydra-compiler |
-| Testes hydra-compiler | **205/205** (15 IR + 19 JVM + 10 JS + 6 parity alvos + 24 CLI + 57 fmt + 15 migrate + 5 corpus + 12 lexer + 21 parser + 9 parity AST + 13 diagnostics) |
-| Paridade de corpus | **36/39** exemplos JVM≡JS (3 = stdlib v1: listOf/setOf/readLine) |
+| Testes hydra-compiler | **213/213** (20 IR + 22 JVM + 11 JS + 6 parity alvos + 24 CLI + 57 fmt + 15 migrate + 5 corpus + 12 lexer + 21 parser + 9 parity AST + 13 diagnostics) |
+| Paridade de corpus | **40/40** exemplos JVM≡JS |
 | Paridade AST | **9/9** shapes hello/val-var/funcoes/erros |
 | Paridade de alvos | **6/6** JVM≡JS (hello/arith/fun/for/string/jvm-only) |
 | Migração Kof | **15+5** testes (unit + corpus training/golden) |
@@ -81,4 +82,5 @@ gh run list --repo JoaoGaValentim/hydra-lang --limit 5
 - Ciclo 14: **F6-01b fmt canônico + preservação de //.**
 - Ciclo 15: **F6-01b new/test + assert no IR + paridade try/catch (Fase 6 fechada).**
 - Ciclo 16: **match/enum/POP tipados + retorno de cauda (D-HYD-028); corpus JVM≡JS 36/39.**
+- Ciclo 17: **Fase 5 stdlib de coleções + IO; corpus 40/40 JVM≡JS; 213/213.**
  |
