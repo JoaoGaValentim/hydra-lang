@@ -29,12 +29,11 @@
       <artifactId>asm</artifactId>
       <version>9.7.1</version>
     </dependency>
-    <!-- Parity F2-04: parser Kof como referência de AST (install local/CI) -->
+    <!-- Migrator F4-01: parser Kof em compile (só o tool usa; frontend Hydra não depende em runtime de app) -->
     <dependency>
       <groupId>dev.kof</groupId>
       <artifactId>kof-compiler</artifactId>
       <version>0.5.0-beta</version>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>dev.kof</groupId>

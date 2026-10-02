@@ -47,8 +47,8 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
-| F4-01 | todo | L | F3 | `hydra migrate` Kof→Hydra (`.kf` → `.hy`). |
-| F4-02 | todo | M | F4-01 | Rodar sobre `examples/` e `training/examples/`; compilar; comparar saída. |
+| F4-01 | feito | L | F3 | `hydra migrate` Kof→Hydra: `Migrator` AST-walk + gate parse + diagnósticos MIG0xx; `MigrateTest` 15/15. |
+| F4-02 | feito | M | F4-01 | Corpus Kof real (`training/examples` + `tests/golden/*`): `MigrateCorpusTest` 5/5 — parseável ou diagnóstico honesto. |
 
 ## Fase 5 — Stdlib
 

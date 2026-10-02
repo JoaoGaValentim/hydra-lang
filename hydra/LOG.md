@@ -17,6 +17,7 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 - **Ciclo 9** | Fase 3 | Feito: **F3-01 fechado** — IR `hydra.compiler.ir.{Ir,IrBuilder}` (shape Kof-like); `IrTest` 10/10; `hydra/IR.md`; **D-HYD-021**; **65/65 verdes**. | Verificado: `mvn -B test` → 65/65; CI run `36959453195` verde. | Decisão: IR com tipos canônicos string; lambda na v2; campo sem `this` → LoadField. | Próximo: F3-02 backend JVM mínimo.
 - **Ciclo 10** | Fase 3 | Feito: **F3-02 fechado** — `JvmBackend` (ASM) + `Compiler`; E2E 7/7 bytecode real. | Verificado: `mvn -B test` → 72/72; CI `36960446128` verde. | Decisão: `Binary.operandType` = operandos; try-catch ASM; println(Int) via scratch. | Próximo: F3-03 JS/Native.
 - **Ciclo 11** | Fase 3 | Feito: **F3-03+F3-04 fechados** — `JsBackend` (switch(pc), sem goto); E2E Node (hello/arith/fun/for/string); `TargetParityTest` JVM≡JS; Native documentado **BLQ-02** (macOS); **84/84**; commit `a528934`; CI `36961027928` verde. | Verificado: `mvn -B test` → BUILD SUCCESS **84/84**; `gh run watch` → structure ✓ + upstream-compile ✓ + hydra-compiler ✓. | Decisão: **D-HYD-022** máquina de estados JS; **D-HYD-023** Native só em Linux; try/catch JS na v2. | Próximo: Fase 4 (migração Kof→Hydra) ou backend JVM v2 (type/enum/lambda).
+- **Ciclo 12** | Fase 4 | Feito: **F4-01+F4-02 fechados** — `Migrator` (AST Kof→Hydra + gate parse + MIG0xx); `MigrateTest` 15/15; `MigrateCorpusTest` 5/5 sobre `training/examples` + golden; Kof em compile scope; **104/104**. | Verificado: `mvn -B test` → BUILD SUCCESS **104/104**. | Decisão: **D-HYD-024** AST-walk + gate + diagnósticos honestos; compat só em tooling. | Próximo: Fase 5 stdlib ou F6 ferramentas (`fmt`/`run`/CLI migrate).
 
 ### Métricas
 
@@ -32,8 +33,9 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 | Baseline testes (foco, macOS) | 808 / 155F / 8E / 26S |
 | Baseline Native (macOS) | inexecutável (as Apple ≠ GNU ELF) |
 | CI Hydra | **VERDE** — structure + upstream-compile + hydra-compiler |
-| Testes hydra-compiler | **84/84** (10 IR + 7 JVM E2E + 6 JS E2E + 6 parity alvos + 12 lexer + 21 parser + 9 parity AST + 13 diagnostics) |
+| Testes hydra-compiler | **104/104** (10 IR + 7 JVM + 6 JS + 6 parity alvos + 15 migrate + 5 corpus + 12 lexer + 21 parser + 9 parity AST + 13 diagnostics) |
 | Paridade AST | **9/9** shapes hello/val-var/funcoes/erros |
 | Paridade de alvos | **6/6** JVM≡JS (hello/arith/fun/for/string/jvm-only) |
-| Códigos de erro | **HYP000–HYP013** (F2-03) |
-| Commits | `4123122` · `e0b3dce` · `3dd5a68` · `7dcac62` · `b905c21` · `c831d37` · `973e3f6` · `f1766b2` · `6c4d58e` · `a1aae9a` · `1082bff` · `b835f35` · `ff95ad5` · `1653ccf` · `4a377de` |
+| Migração Kof | **15+5** testes (unit + corpus training/golden) |
+| Códigos de erro | **HYP000–HYP013** · **MIG001–MIG015** |
+| Commits | `4123122` · `e0b3dce` · `3dd5a68` · `7dcac62` · `b905c21` · `c831d37` · `973e3f6` · `f1766b2` · `6c4d58e` · `a1aae9a` · `1082bff` · `b835f35` · `ff95ad5` · `1653ccf` · `4a377de` · `a528934` · `f2fef2b` |

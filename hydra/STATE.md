@@ -1,7 +1,7 @@
 # STATE — Hydra
 
-**Última atualização:** 2026-10-02 (Ciclo 11 — F3-03/F3-04 JS + paridade)
-**Fase atual:** 3 fechada (IR + JVM + JS + paridade); próximo = Fase 4 (migração) ou backend JVM v2
+**Última atualização:** 2026-10-02 (Ciclo 12 — F4-01/F4-02 migração)
+**Fase atual:** 4 fechada no subset (migrate + corpus); próximo = F5 stdlib ou F6 ferramentas
 **Operador:** MiMo 2.5 (engenheiro-chefe autônomo)
 
 ---
@@ -9,43 +9,39 @@
 ## Em que estou
 
 - Repo: `https://github.com/JoaoGaValentim/hydra-lang`.
-- Fase 2 fechada; **F3-01..F3-04 fechados** (F3 com subset hello+funções+for+string).
-- `compiler/`: **84/84 testes verdes** (10 IR + 7 JVM E2E + 6 JS E2E + 6 parity alvos + 12 lexer + 21 parser + 9 parity AST + 13 diagnostics).
+- Fases 2–4 fechadas no subset honesto (F3: IR+JVM+JS+paridade; F4: migrate).
+- `compiler/`: **104/104 testes verdes** (inclui MigrateTest 15 + MigrateCorpusTest 5).
 - CI: `structure` + `upstream-compile` + `hydra-compiler`.
 
 ## O que funciona
 
-- Lexer: 20 keywords; diagnósticos HYP001..013.
-- Parser: unit, import, fun, type, enum, stmts, exprs, lambda, match.
-- Paridade AST (`hydra/PARITY.md`).
-- IR (`hydra/IR.md`): shape Kof-like; `IrBuilder` lowera AST→IR.
-- **JVM E2E**: fonte `.hy` → `.class` → executa (`Compiler.compileTo` + `JvmBackend`).
-- **JS E2E**: fonte `.hy` → `main.js` → `node main.js` (`Compiler.compileToJs` + `JsBackend`).
-- **Paridade de alvos**: `TargetParityTest` — mesma fonte, mesma saída JVM e JS.
+- Lexer/parser/diagnósticos HYP001..013; paridade AST com Kof.
+- IR + backends JVM e JS; paridade de alvos no subset.
+- **`Migrator` (F4-01)**: `.kf` → `.hy` com gate de parse e diagnósticos MIG0xx.
+- **Corpus (F4-02)**: `training/examples` + `tests/golden/*` migram com saída parseável ou diagnóstico honesto.
 
 ## Pipeline atual
 
 ```
-.hy → Lexer → Parser → Ast.Unit → IrBuilder → Ir.Module
-  ├─ JvmBackend → Main.class → java Main
-  └─ JsBackend  → main.js   → node main.js
+.kf → Kof Parser → Migrator → .hy
+.hy → Lexer → Parser → Ast.Unit → Ir.Module
+  ├─ JvmBackend → Main.class
+  └─ JsBackend  → main.js
 ```
 
 ## Limites v1 (honestos)
 
-- Sem objetos/`type` em runtime (LoadField/NewObject → erro nos dois backends).
-- Sem enum como classe (LoadEnum vira string `"Color.Red"`).
-- Lambda: IR rejeita (v2).
-- println(Int/Float) usa scratch/conv no JVM; println multi-arg: v2.
-- **try/catch só no JVM** — JS na v2 (`JsBackend` ignora TryStart/TryEnd/CatchStart).
-- **Native: BLQ-02** (macOS aarch64 ≠ GNU ELF) — não implementado nesta estação.
+- Sem objetos/`type` em runtime (LoadField/NewObject → erro).
+- Enum vira string; lambda: IR rejeita (v2).
+- try/catch JS na v2; Native: **BLQ-02** (macOS).
+- Migrator: finally/do-while/break/implements/generics/arrays → MIG0xx (parcial com diagnóstico).
+- Comentários não são preservados na migração.
 
 ## Próxima ação
 
-1. **Fase 4**: ferramenta de migração Kof→Hydra (`hydra migrate`) — compat é tooling, nunca gramática (D-HYD-001).
-2. **Backend JVM v2**: `type`/enum em runtime + lambda no IR.
-3. **JsBackend v2**: try/catch; objetos quando IR os liberar.
-4. Native só em Linux dedicado (não prometer aqui).
+1. **Fase 5**: stdlib com orçamento (uma API por conceito; gap codes por alvo).
+2. **Fase 6**: `hydra fmt`/`run`/`migrate` CLI (`F6-01`).
+3. Backend JVM v2 (`type`/enum runtime, lambda) quando F5/F6 pedirem.
 
 ## Comandos
 
@@ -58,10 +54,7 @@ gh run list --repo JoaoGaValentim/hydra-lang --limit 5
 
 - Ciclo 1–3: reconhecimento, skeleton, spec.
 - Ciclo 4: Fase 1 congelada + lexer.
-- Ciclo 5: parser núcleo.
-- Ciclo 6: enum/destructuring/função-tipo.
-- Ciclo 7: F2-04 paridade + CI Kof.
-- Ciclo 8: F2-03 diagnósticos + Fase 2 fechada.
-- Ciclo 9: F3-01 IR + `IrBuilder`.
-- Ciclo 10: F3-02 `JvmBackend` + E2E 7/7.
-- Ciclo 11: F3-03 `JsBackend` + F3-04 paridade de alvos + BLQ-02 Native.
+- Ciclo 5–8: parser, enum, paridade, diagnósticos (Fase 2 fechada).
+- Ciclo 9–10: IR + JVM E2E.
+- Ciclo 11: JS backend + paridade de alvos (Fase 3 fechada).
+- Ciclo 12: **F4-01/F4-02 migrate + corpus** (Fase 4 fechada no subset).

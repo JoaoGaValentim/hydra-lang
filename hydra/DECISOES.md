@@ -173,6 +173,13 @@ Formato curto:
 - Consequências: F3-03 fecha com JS + paridade; Fase de Native reabre quando o ambiente existir (não é bloqueio de roadmap, é bloqueio de host).
 - Data: 2026-10-02
 
+### D-HYD-024 — Migrator AST-walk com gate de parse e diagnósticos MIG
+- Contexto: D-HYD-001 coloca compat Kof em tooling (`hydra migrate`), nunca na gramática. Kof tem AST pública (`dev.kof.compiler.*`).
+- Decisão: F4-01 = `hydra.compiler.migrate.Migrator`: parse Kof → walk AST → imprime Hydra canônico → **gate** com o parser Hydra. Construtos sem forma honesta viram `MIG0xx` (do-while, finally, break/continue, implements, generics, arrays). `ok=false` quando há parcialidade; saída parcial ainda é retornada. Kof-compiler vira dependência de **compile** no módulo do compilador (só o Migrator consome).
+- Alternativas descartadas: rewriter só de tokens (perde struct de class/record); migração silenciosa quebra o gate de "sem stub"; depender do backend para validar migração (fase errada).
+- Consequências: corpus Kof real coberto por `MigrateCorpusTest`; usuários veem diagnóstico do que NÃO migrou; gramática Hydra permanece intacta.
+- Data: 2026-10-02
+
 ---
 
 *Novas decisões entram aqui no ciclo em que forem tomadas (seção 8, passo 8).*
