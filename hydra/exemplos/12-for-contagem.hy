@@ -1,6 +1,7 @@
-// 12 — for: cabeçalho clássico (contagem / update explícito)
+// 12 — for: cabeçalho clássico com parênteses e vírgulas (sem ';')
+// (for (var i = 0, i < 3, i += 1))
 main() {
-    for var i = 0; i < 3; i += 1 {
+    for (var i = 0, i < 3, i += 1) {
         println(i)
     }
 }

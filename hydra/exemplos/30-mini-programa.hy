@@ -1,5 +1,5 @@
 // 30 — mini programa: combina type, match, for, fun, nullable
-type Conta(String titular, var saldo: Float)
+type Conta(titular: String, var saldo: Float)
 
 main() {
     val c = Conta("Mel", 100.0)

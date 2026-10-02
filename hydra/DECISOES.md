@@ -124,6 +124,20 @@ Formato curto:
 - Consequências: stdlib de recursos (arquivos, conexões) usa padrão documentado sem `finally`.
 - Data: 2026-10-01
 
+### D-HYD-019 — `for` clássico com parênteses e vírgulas; `case`/`default`/`in` contextuais
+- Contexto: D-HYD-005 remove `;`; a EBNF inicial do `for` clássico ainda usava `;`. `case`/`default`/`in` não podem entrar nas 20 keywords.
+- Decisão: classic-head = `( var i = 0, cond, update )` com vírgulas. `in` é contextual (IDENT `in` após nome de variável no for-in). `case`/`default` são contextuais dentro de `match`. `in-head` aceita `val`/`var` opcionais (`for x in xs` e `for var x in xs`).
+- Alternativas descartadas: reintroduzir `;` só para o for; promover `case`/`in` a keywords (estoura 20).
+- Consequências: parser trata palavras pelo texto em contexto; exemplos 11–13 alinhados.
+- Data: 2026-10-01
+
+### D-HYD-020 — `extends` após o header de campos
+- Contexto: `type Dog(String name) extends Animal` lê melhor que `extends` antes do header; exemplos 22–23 já usam essa ordem.
+- Decisão: `type-decl = type ident header [extends typ] body`.
+- Alternativas descartadas: ordem inversa (extends antes do header).
+- Consequências: EBNF e parser alinhados aos exemplos.
+- Data: 2026-10-01
+
 ### D-HYD-012 — Gramática EBNF rascunho (Fase 1)
 - Contexto: precisa-se de gramática normativa ≤120 linhas antes do lexer.
 - Decisão: `hydra/ESPECIFICACAO.md` §3 é a gramática alvo (~95 linhas). `for` com 3 cabeçalhos (in/classic/cond); `match` sempre expressão; `if` sempre expressão; `type` único; lambdas `(p) -> e`; construção `X()` sem `new`.

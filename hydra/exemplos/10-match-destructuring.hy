@@ -1,5 +1,5 @@
 // 10 — match com binding e desestruturação
-type Point(Int x, Int y)
+type Point(x: Int, y: Int)
 
 descrever(p: Point): String {
     match (p) {

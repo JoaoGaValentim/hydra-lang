@@ -1,9 +1,9 @@
 // 23 — tipo abstrato: membros sem corpo (assinatura)
-type Shape(Int sides) {
+type Shape(sides: Int) {
     area(): Float
 }
 
-type Square(Float side) extends Shape(4) {
+type Square(side: Float) extends Shape {
     area(): Float {
         return side * side
     }

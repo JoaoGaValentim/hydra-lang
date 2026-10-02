@@ -12,6 +12,8 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 
 - **Ciclo 4** | Fase 1→2 | Feito: F1-04 aprovado; Fase 1 congelada; D-HYD-014..018 (sem `this`, contextuais, sem wildcard, `as` morto, sem `finally`); projeto `compiler/` Maven `hydra-compiler`; **lexer** com 20 keywords + operadores + strings; **12 testes verdes** (`mvn test`); CI job `hydra-compiler`. | Verificado: `mvn -B test` em `compiler/` → BUILD SUCCESS, 12/12. | Decisão: conjunto de 20 congelado com `extends`; Fase 1 congelada. | Próximo: parser (F2-02) a partir da EBNF congelada.
 
+- **Ciclo 5** | Fase 2 | Feito: parser recursivo (AST + SyntaxError com linha/coluna); 29 testes verdes (12 lexer + 17 parser); EBNF corrigido (campo `nome: Tipo`, classic-for com vírgulas, `extends` após header, `case`/`default`/`in` contextuais); D-HYD-019..020; exemplos alinhados. | Verificado: `mvn -B test` em `compiler/` → **29/29** BUILD SUCCESS. | Decisão: uma forma de campo (`nome: Tipo`); for clássico `(var i = 0, cond, update)`. | Próximo: enum no parser, mais bordas de erro, CI verde no job hydra-compiler.
+
 ### Métricas
 
 | Métrica | Valor |
@@ -26,5 +28,5 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 | Baseline testes (foco, macOS) | 808 / 155F / 8E / 26S |
 | Baseline Native (macOS) | inexecutável (as Apple ≠ GNU ELF) |
 | CI Hydra | **VERDE** — structure + upstream-compile + hydra-compiler |
-| Testes lexer Hydra | **12/12** |
-| Commits | `4123122` · `e0b3dce` · `3dd5a68` · `7dcac62` · `b905c21` |
+| Testes hydra-compiler | **29/29** (12 lexer + 17 parser) |
+| Commits | `4123122` · `e0b3dce` · `3dd5a68` · `7dcac62` · `b905c21` · `c831d37` · `973e3f6` |

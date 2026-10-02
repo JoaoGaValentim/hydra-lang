@@ -1,7 +1,7 @@
 // 31 — após-migração: estilo Kof canônico traduzido para Hydra
 // Kof: while + switch + class + new + fun — todos mortos aqui
 
-type Point(Int x, Int y)
+type Point(x: Int, y: Int)
 
 area(p: Point): Int {
     return p.x * p.y

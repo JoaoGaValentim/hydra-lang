@@ -29,10 +29,10 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
-| F2-01 | fazendo | L | F1 | Lexer Hydra (novo, em `compiler/`). |
-| F2-02 | todo | L | F2-01 | Parser Hydra + AST. |
-| F2-03 | todo | M | F2-02 | Testes de parse: válidos, inválidos, borda; mensagens com linha/coluna/sugestão. |
-| F2-04 | todo | M | F2-02 | Prova: exemplos da Fase 1 → AST equivalente à do Kof correspondente. |
+| F2-01 | feito | L | F1 | Lexer Hydra (`compiler/`) — 12 testes. |
+| F2-02 | fazendo | L | F2-01 | Parser + AST — núcleo pronto (unit, fun, type, stmts, exprs); 17 testes; `enum`/destructuring completo/`match` de enum pendentes. |
+| F2-03 | fazendo | M | F2-02 | Diagnósticos com linha/coluna (SyntaxError); faltam casos de borda e sugestões. |
+| F2-04 | todo | M | F2-02 | Prova: exemplos da Fase 1 → AST equivalente à do Kof. |
 
 ## Fase 3 — IR e backends
 

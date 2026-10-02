@@ -66,11 +66,11 @@ import      = "import" , qualname ;
 
 decl        = type-decl | fun-decl | test-decl | app-decl ;
 
-(* tipos: um conceito, imutável por default *)
-type-decl   = "type" , ident , [ type-params ] , [ "extends" , typ ] , header , body ;
+(* tipos: um conceito, imutável por default; extends após o header de campos *)
+type-decl   = "type" , ident , [ type-params ] , header , [ "extends" , typ ] , body ;
 header      = "(" , [ field , { "," , field } ] , ")" ;
 body        = [ "{" , { member } , "}" ] ;
-field       = [ "var" ] , typ , ident , [ "=" , expr ] ;
+field       = [ "var" ] , ident , ":" , typ , [ "=" , expr ] ;
 member      = field | method | ctor ;
 method      = ident , "(" , params , ")" , [ ":" , typ ] , ( block | "=" , expr ) ;
 ctor        = ident , "(" , params , ")" , block ;
@@ -99,11 +99,12 @@ try-stmt    = "try" , block , { "catch" , "(" , ident , ")" , block } ;
 spawn-stmt  = "spawn" , expr ;
 expr-stmt   = expr ;
 
-(* repetição: UMA palavra for — três cabeçalhos, um conceito *)
+(* repetição: UMA palavra for — três cabeçalhos, um conceito
+   (classic usa vírgulas: ';' não existe na linguagem) *)
 for-stmt    = "for" , for-head , block ;
 for-head    = in-head | classic-head | cond-head ;
-in-head     = ( "val" | "var" ) , ident , "in" , expr ;
-classic-head= "(" , [ var-decl | expr ] , ";" , [ expr ] , ";" , [ expr ] , ")" ;
+in-head     = [ "val" | "var" ] , ident , "in" , expr ;
+classic-head= "(" , [ var-decl , "," ] , [ expr , "," ] , [ expr ] , ")" ;
 cond-head   = "(" , expr , ")" ;
 
 (* escolha por padrão: UMA construção match — sempre expressão *)
@@ -212,7 +213,7 @@ main() {
 ```
 
 ```hy
-type Point(Int x, Int y)
+type Point(x: Int, y: Int)
 
 type User(var name: String, var age: Int) {
     greet(): String {
@@ -236,7 +237,7 @@ main() {
         println(x)
     }
 
-    for var i = 0; i < 3; i += 1 {
+    for (var i = 0, i < 3, i += 1) {
         println(i)
     }
 

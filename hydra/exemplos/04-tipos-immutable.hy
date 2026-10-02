@@ -1,7 +1,8 @@
 // 04 — type imutável: um conceito, sem new, sem class/record
-type Point(Int x, Int y)
+// Campos: nome: Tipo (uma forma só)
+type Point(x: Int, y: Int)
 
-type Pair(String a, Int b)
+type Pair(a: String, b: Int)
 
 main() {
     val p = Point(10, 20)
