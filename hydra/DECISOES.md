@@ -138,6 +138,13 @@ Formato curto:
 - Consequências: EBNF e parser alinhados aos exemplos.
 - Data: 2026-10-01
 
+### D-HYD-021 — IR Hydra espelha shape do Kof
+- Contexto: D-HYD-002 congela IR/backends como contrato; Kof tem `IRModule/IRClass/IRMethod/IRBasicBlock/KofOperation`.
+- Decisão: `hydra.compiler.ir.Ir` replica o shape (módulo → classes → métodos → blocks → ops de pilha) com tipos canônicos string (`Int/Float/String/Bool/Void/Any`). `IrBuilder` faz lowering AST→IR. Documentado em `hydra/IR.md`.
+- Alternativas descartadas: IR de árvore tipada (mudaria o contrato de backend); reutilizar classes Java do Kof no runtime do compilador Hydra (acoplamento indevido no frontend).
+- Consequências: backends futuros (JVM/JS/Native) consomem `Ir.Module`; paridade com Kof fica no shape, não na implementação Java.
+- Data: 2026-10-02
+
 ### D-HYD-012 — Gramática EBNF rascunho (Fase 1)
 - Contexto: precisa-se de gramática normativa ≤120 linhas antes do lexer.
 - Decisão: `hydra/ESPECIFICACAO.md` §3 é a gramática alvo (~95 linhas). `for` com 3 cabeçalhos (in/classic/cond); `match` sempre expressão; `if` sempre expressão; `type` único; lambdas `(p) -> e`; construção `X()` sem `new`.

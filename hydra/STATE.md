@@ -1,7 +1,7 @@
 # STATE — Hydra
 
-**Última atualização:** 2026-10-02 (Ciclo 8 — Fase 2 fechada)
-**Fase atual:** 2 → 3 (frontend completo; próximo = IR)
+**Última atualização:** 2026-10-02 (Ciclo 9 — F3-01 IR)
+**Fase atual:** 3 (IR feito; próximo = backend JVM)
 **Operador:** MiMo 2.5 (engenheiro-chefe autônomo)
 
 ---
@@ -9,44 +9,32 @@
 ## Em que estou
 
 - Repo: `https://github.com/JoaoGaValentim/hydra-lang`.
-- **Fase 2 fechada**: lexer + parser + paridade + diagnósticos.
-- `compiler/`: **55/55 testes verdes** (12 lexer + 21 parser + 9 parity + 13 diagnostics).
+- Fase 2 fechada; **F3-01 IR fechado**.
+- `compiler/`: **65/65 testes verdes** (10 IR + 12 lexer + 21 parser + 9 parity + 13 diagnostics).
 - CI: `structure` + `upstream-compile` + `hydra-compiler`.
 
 ## O que funciona
 
-- Lexer: 20 keywords; erros honestos (`;`, string, escape) com sugestão.
-- Parser: unit, import, fun, type, enum, stmts, exprs, lambda, match.
+- Lexer: 20 keywords; erros honestos com sugestão (HYP010).
+- Parser: unit, import, fun, type, enum, stmts, exprs, lambda, match; diagnósticos HYP001..013.
 - Paridade: shapes Hydra ↔ Kof (`hydra/PARITY.md`).
-- Diagnósticos: `SyntaxError` com `code` (HYP00x), `suggestion`, contexto de linha com `^`.
+- **IR**: `Ir.Module/Class/Method/Block/Op`; `IrBuilder` lowera AST→IR; contrato em `hydra/IR.md`.
 
-## Códigos de erro (F2-03)
+## IR (F3-01)
 
-| Code | Caso |
-|---|---|
-| HYP000 | genérico |
-| HYP001 | `expect` falhou (com hint contextual) |
-| HYP002 | decl inválida no topo |
-| HYP003 | enum sem casos |
-| HYP004 | for-in / for clássico confuso |
-| HYP005 | padrão `case` inválido |
-| HYP006 | `case` fora de `match` |
-| HYP007 | expressão inesperada |
-| HYP008 | parâmetro sem `:` |
-| HYP009 | assinatura sem corpo/`=` |
-| HYP010 | erro de lexer |
-| HYP011 | `catch (String e)` — tipo proibido |
-| HYP012 | `fun`/`fn`/`func` |
-| HYP013 | `class`/`record` |
+- Shape Kof-like; tipos canônicos: `Int/Float/String/Bool/Void/Any`.
+- Lowering cobre: funções, val/var, if, for (3 heads), match, try/catch/throw, enum, type-decl, calls, assign.
+- Campo sem `this` → `LoadField` (D-HYD-014); enum → `LoadEnum`.
+- Lambda e compound-assign em campo: **v2** (erros honestos).
 
 ## Orçamento (F1-04)
 
-20 keywords · EBNF ~71 · 40 exemplos · testes 55/55.
+20 keywords · EBNF ~71 · 40 exemplos · testes 65/65.
 
 ## Próxima ação
 
-1. Abrir **Fase 3**: F3-01 IR a partir da AST Hydra (contrato estável; espelhar IR do Kof).
-2. Programa mínimo `01-hello` → IR → execução.
+1. **F3-02**: backend JVM mínimo a partir de `Ir.Module` (hello world ponta a ponta).
+2. Depois F3-03 (Native/JS) e F3-04 (paridade de alvos).
 
 ## Comandos
 
@@ -62,4 +50,5 @@ gh run list --repo JoaoGaValentim/hydra-lang --limit 5
 - Ciclo 5: parser núcleo.
 - Ciclo 6: enum/destructuring/função-tipo.
 - Ciclo 7: F2-04 paridade + CI Kof.
-- Ciclo 8: F2-03 diagnósticos + **Fase 2 fechada**.
+- Ciclo 8: F2-03 diagnósticos + Fase 2 fechada.
+- Ciclo 9: F3-01 IR + `IrBuilder` + `IrTest`.

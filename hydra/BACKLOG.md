@@ -38,8 +38,8 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
-| F3-01 | todo | L | F2 | Semântica + geração de IR a partir da AST Hydra (contrato IR estável). |
-| F3-02 | todo | L | F3-01 | Programa mínimo ponta a ponta em JVM. |
+| F3-01 | feito | L | F2 | IR + lowering: `hydra.compiler.ir.{Ir,IrBuilder}`; contrato em `hydra/IR.md`; `IrTest` 10/10. |
+| F3-02 | todo | L | F3-01 | Programa mínimo ponta a ponta em JVM (backend a partir de `Ir.Module`). |
 | F3-03 | todo | M | F3-02 | Native e JS para o mesmo programa. |
 | F3-04 | todo | M | F3-02 | Suíte de paridade entre alvos. |
 

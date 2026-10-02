@@ -13,7 +13,7 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 - **Ciclo 5** | Fase 2 | Feito: parser recursivo (AST + SyntaxError com linha/coluna); 29 testes verdes (12 lexer + 17 parser); EBNF corrigido (campo `nome: Tipo`, classic-for com vírgulas, `extends` após header, `case`/`default`/`in` contextuais); D-HYD-019..020; exemplos alinhados. | Verificado: `mvn -B test` em `compiler/` → **29/29** BUILD SUCCESS. | Decisão: uma forma de campo (`nome: Tipo`); for clássico `(var i = 0, cond, update)`. | Próximo: enum no parser, mais bordas de erro, CI verde no job hydra-compiler.
 - **Ciclo 6** | Fase 2 | Feito: **enum** (`EnumDecl` + parse + match `Color.Red`); destructuring `Point x y`; função-tipo `(Int) -> Int` no `parseTypeRef`; método abstrato (assinatura sem corpo); testes expandidos para 34 exemplos `.hy`; **33/33 verdes**. | Verificado: `mvn -B test` em `compiler/` → BUILD SUCCESS, 33/33 (12 lexer + 21 parser). | Decisão: enum com casos separados por newline (sem vírgulas); abstrato permitido só em type-decl. | Próximo: F2-04 paridade AST com Kof; F2-03 bordas de erro; commit+push+CI.
 - **Ciclo 7** | Fase 2 | Feito: **F2-04 fechado** — `ParityTest` 9/9 (hello, val-var, funcoes, erros, enum, type-membros, lambdas + parse both + functionShape); `hydra/PARITY.md`; dep test `kof-compiler:0.5.0-beta`; CI `hydra-compiler` instala `kof-parent` + módulos antes de `mvn test`; **42/42 verdes**; CI verde run `36957628100`. | Verificado: `mvn -B test` → 42/42; `gh run watch` → structure ✓ + upstream-compile ✓ + hydra-compiler ✓. | Decisão: normalizações de shape (call sem recv, ret void/?, catch só nome); type/enum sem full-shape. | Próximo: F2-03 bordas de erro; fechar Fase 2; Fase 3 IR.
-- **Ciclo 8** | Fase 2→3 | Feito: **F2-03 fechado** — `SyntaxError` com `code`/`suggestion`/contexto de linha; `hintExpect` + erros HYP001..013; lexer rejeita `;` com sugestão; `catch (String e)` rejeitado; `fun`/`class` rejeitados no topo; `DiagnosticsTest` 13/13; **55/55 verdes**; **Fase 2 fechada**. | Verificado: `mvn -B test` → BUILD SUCCESS 55/55. | Decisão: diagnóstico com código estável HYP0xx para tooling futuro. | Próximo: F3-01 IR a partir da AST Hydra.
+- **Ciclo 8** | Fase 2→3 | Feito: **F2-03 fechado** — `SyntaxError` com `code`/`suggestion`/contexto de linha; `hintExpect` + erros HYP001..013; lexer rejeita `;` com sugestão; `catch (String e)` rejeitado; `fun`/`class` rejeitados no topo; `DiagnosticsTest` 13/13; **55/55 verdes**; **Fase 2 fechada**. | Verificado: `mvn -B test` → BUILD SUCCESS 55/55; CI run `36958202456` verde. | Decisão: diagnóstico com código estável HYP0xx para tooling futuro. | Próximo: F3-01 IR a partir da AST Hydra.
 
 ### Métricas
 
@@ -29,6 +29,7 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 | Baseline testes (foco, macOS) | 808 / 155F / 8E / 26S |
 | Baseline Native (macOS) | inexecutável (as Apple ≠ GNU ELF) |
 | CI Hydra | **VERDE** — structure + upstream-compile + hydra-compiler |
-| Testes hydra-compiler | **42/42** (12 lexer + 21 parser + 9 parity) |
+| Testes hydra-compiler | **65/65** (10 IR + 12 lexer + 21 parser + 9 parity + 13 diagnostics) |
 | Paridade AST | **9/9** shapes hello/val-var/funcoes/erros |
-| Commits | `4123122` · `e0b3dce` · `3dd5a68` · `7dcac62` · `b905c21` · `c831d37` · `973e3f6` · `f1766b2` · `6c4d58e` · `a1aae9a` · `1082bff` |
+| Códigos de erro | **HYP000–HYP013** (F2-03) |
+| Commits | `4123122` · `e0b3dce` · `3dd5a68` · `7dcac62` · `b905c21` · `c831d37` · `973e3f6` · `f1766b2` · `6c4d58e` · `a1aae9a` · `1082bff` · `b835f35` · `ff95ad5` |
