@@ -3,10 +3,7 @@ type Shape(Int sides) {
     area(): Float
 }
 
-type Square(Float side) extends Shape(Int sides) {
-    Square(Float side): Shape(4) {
-    }
-
+type Square(Float side) extends Shape(4) {
     area(): Float {
         return side * side
     }

@@ -32,8 +32,10 @@ if else for match
 return throw try catch
 spawn await
 true false null
-this super
+extends super
 ```
+
+`extends` entra no lugar de `this` (acesso a membro usa nome sem `this`; `super.m()` mantém `super`). Herança exige `extends` (exemplos 22–23).
 
 | Fora do conjunto | Papel |
 |---|---|
@@ -46,9 +48,11 @@ this super
 | `assert` | built-in de stdlib (função), não palavra |
 | modificadores Java | **não existem** |
 | tipos primitivos | não são keywords — nomes de tipo (`Int`, `String`) no contexto de tipo |
-| `test`/`application` | declarações de topo — candidatas a keyword; se entrarem, estouram 20 e reavaliamos o conjunto |
+| `test`/`application` | contextuais de topo no rascunho; candidatas a keyword (§8) |
 
 **Comentários:** apenas `//` (D-HYD-006).
+
+**Built-ins de stdlib (não são keywords):** `println`, `assert(cond, msg)`, `listOf`, `mapOf`, `setOf`, `readLine`.
 
 ---
 
@@ -63,7 +67,7 @@ import      = "import" , qualname ;
 decl        = type-decl | fun-decl | test-decl | app-decl ;
 
 (* tipos: um conceito, imutável por default *)
-type-decl   = "type" , ident , [ type-params ] , header , body ;
+type-decl   = "type" , ident , [ type-params ] , [ "extends" , typ ] , header , body ;
 header      = "(" , [ field , { "," , field } ] , ")" ;
 body        = [ "{" , { member } , "}" ] ;
 field       = [ "var" ] , typ , ident , [ "=" , expr ] ;
@@ -106,7 +110,8 @@ cond-head   = "(" , expr , ")" ;
 match-stmt  = "match" , "(" , expr , ")" , "{" , { case-arm } , [ default-arm ] , "}" ;
 case-arm    = "case" , pattern , [ "if" , expr ] , "->" , expr ;
 default-arm = "default" , "->" , expr ;
-pattern     = ident , ident                       (* binding: case String s *)
+pattern     = qualname                              (* enum: Color.Red *)
+            | ident , ident                        (* binding: case String s *)
             | ident , "(" , [ bind , { "," , bind } ] , ")" ;  (* destructuring *)
 bind        = [ "val" | "var" ] , ident ;
 
@@ -128,7 +133,7 @@ unary       = ( "!" | "-" | "await" | "spawn" ) , unary | postfix ;
 postfix     = primary , { "." , ident , [ args ] | "[" , expr , "]" | args } ;
 args        = "(" , [ expr , { "," , expr } ] , ")" ;
 
-primary     = literal | ident | "this" | "super" | "(" , expr , ")"
+primary     = literal | ident | "super" | "(" , expr , ")"
             | lambda | if-expr | match-expr | new-like ;
 if-expr     = "if" , "(" , expr , ")" , expr , "else" , expr ;
 match-expr  = match-stmt ;
@@ -195,7 +200,7 @@ app-decl    = "application" , "{" , { ident , block } , "}" ;
 
 ## 7. Exemplos canônicos
 
-Corpo completo em [`hydra/exemplos/`](exemplos/) — **39 arquivos `.hy`** numerados 01–38 (+ arquivos de apoio). Cobrem: hello, val/var, funções, tipos immutable/mutable, enum, if, match (básico/guardas/destructuring/null), for (3 cabeçalhos), strings, nullable, erros, lambdas, trailing, listas, mapas, conjuntos, herança, tipo abstrato, concorrência, imports, testes, matemática, assign composto, closures, mini programa, migração, enum exaustivo, tipos anotados, application, comentários, bitwise, ordem superior.
+Corpo completo em [`hydra/exemplos/`](exemplos/) — **40 arquivos `.hy`** numerados 01–40. Cobrem: hello, val/var, funções, tipos immutable/mutable, enum, if, match (básico/guardas/destructuring/null), for (3 cabeçalhos), strings, nullable, erros, lambdas, trailing, listas, mapas, conjuntos, herança, tipo abstrato, concorrência, imports, testes, matemática, assign composto, closures, mini programa, migração, enum exaustivo, tipos anotados, application, comentários, bitwise, ordem superior.
 
 Amostras (as restantes estão nos arquivos):
 
@@ -265,11 +270,13 @@ main() {
 
 ## 8. Pendências desta especificação
 
-- [ ] Fechar se `test`/`application` entram como keywords (estoura o orçamento). Exemplo `37-application.hy` existe como forma candidata.
+- [ ] Fechar se `test`/`application` entram como keywords (contextuais no rascunho; estouram 20). Exemplo `37-application.hy` é forma candidata.
 - [ ] Decidir wildcard de import sim/não (exemplo `25-imports.hy` usa qualname puro).
 - [ ] Decidir `as` definitivamente morto ou mantido (fora do conjunto de 20; `match` cobre downcast na v1).
-- [ ] Relitura crítica dos 39 exemplos + EBNF (orçamento de linhas, keywords, formas por conceito).
-- [ ] Congelar após revisão de orçamento (keywords, linhas EBNF, formas por conceito).
+- [x] Orçamento de keywords: **20** (D-HYD-011 rev.; `this` → `extends`).
+- [x] EBNF não-vazia ≈ **71** linhas (meta ≤120).
+- [x] Exemplos: **40** `.hy` (relitura fez `36` sem alias de tipo; `extends` documentado).
+- [ ] Congelar Fase 1 após passar o checklist F1-04 e decidir os itens contextuais.
 - [ ] Mapear cada forma para o AST/IR do Kof (contrato Fase 2–3).
 - [ ] `finally`: fora do conjunto de 20; se precisar voltar, entra e sai outro.
 

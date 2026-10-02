@@ -1,11 +1,11 @@
-// 22 — herança: type com super
+// 22 — herança: extends + super
 type Animal(String name) {
     som(): String {
         return "..."
     }
 }
 
-type Dog(String name) extends Animal(String name) {
+type Dog(String name) extends Animal {
     som(): String {
         return "au"
     }

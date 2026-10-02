@@ -22,8 +22,8 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 |---|---|---|---|---|
 | F1-01 | fazendo | L | F0 | `ESPECIFICACAO.md` rascunho 0.1 (EBNF ~71 linhas, keywords 20, tipos, semântica). **Falta:** relitura crítica + congelar orçamento. |
 | F1-02 | fazendo | M | F1-01 | `DECISOES.md` D-HYD-001..013 registradas. Restam: wildcard import, `as`, `test`/`application` keywords, `finally`. |
-| F1-03 | fazendo | L | F1-01 | **39** exemplos `.hy` em `hydra/exemplos/`. Falta relitura crítica contra a EBNF (ex.: alias de tipo `type Inteiro = Int` pode não estar na gramática). |
-| F1-04 | todo | S | F1-03 | Checklist orçamento: keywords, linhas de gramática, formas por conceito — executar e registrar no STATE. |
+| F1-03 | fazendo | L | F1-01 | **40** exemplos `.hy` em `hydra/exemplos/`. Falta relitura crítica contra a EBNF (ex.: alias de tipo `type Inteiro = Int` pode não estar na gramática). |
+| F1-04 | feito | S | F1-03 | Checklist orçamento executado (STATE): keywords 20 ✓ · EBNF ~71 ✓ · formas 1/2/1 ✓ · 40 exemplos ✓. Fase 1 **ainda não congelada** — faltam decisões contextuais. |
 
 ## Fase 2 — Frontend
 

@@ -12,7 +12,7 @@
 - CI **verde** no último push (run `36952608349`): jobs `structure` + `upstream-compile` passaram.
 - `hydra/AUDITORIA-SINTAXE.md` §17 quase fechado (itens 0–6 marcados; varredura de `learn/`/`examples/*` completa fica para quando a migração pedir).
 - `hydra/ESPECIFICACAO.md` rascunho 0.1 escrito (EBNF ~71 linhas não-vazias; keywords alvo 20).
-- `hydra/exemplos/` com **39** arquivos `.hy` cobrindo as formas da especificação.
+- `hydra/exemplos/` com **40** arquivos `.hy` cobrindo as formas da especificação.
 - `DECISOES.md`: D-HYD-001..013.
 
 ## O que funciona
@@ -53,11 +53,28 @@ Mortos: `FUN`/`FN`/`FUNC`.
 
 ## Próxima ação concreta
 
-1. Revisar os 39 exemplos contra a EBNF (corrigir inconsistências óbvias, ex.: `type Inteiro = Int` pode não estar na gramática — avaliar).
-2. Fechar orçamento: keywords 20, EBNF ≤120, uma forma por conceito — checklist em `BACKLOG` F1-04.
-3. Registrar pendências restantes da Fase 1 (wildcard import, `as`, `test`/`application` keywords) com dados dos exemplos.
-4. Commit + push (mínimo a cada 3 ciclos; CI verde).
-5. Só então Fase 2 (lexer Hydra).
+1. Passar checklist F1-04 (orçamento) e registrar resultado abaixo.
+2. Decidir itens contextuais: `test`/`application` keywords?, wildcard import, `as`, `finally`.
+3. Congelar Fase 1 (STATE + ESPECIFICACAO + DECISOES marcados como rascunho congelado).
+4. Commit + push e só então Fase 2 (lexer Hydra).
+
+## Checklist orçamento (F1-04)
+
+| Portão | Meta | Medido | OK? |
+|---|---|---|---|
+| Palavras reservadas | ≤20 | **20** (`extends super` no lugar de `this`) | sim |
+| Linhas EBNF (não vazias) | ≤120 | **~71** | sim |
+| Formas de repetir | 1 | 1 (`for` ×3 cabeçalhos) | sim |
+| Formas de ramificar | 2 | 2 (`if` + `match`) | sim |
+| Formas de comentário | 1 | 1 (`//`) | sim |
+| Estilo de `;` | 1 (newline) | 1 (sem `;` na gramática) | sim |
+| Formas de construção | 1 | 1 (`X()`, sem `new`) | sim |
+| Exemplos `.hy` | 30+ | **40** | sim |
+| `extends` na gramática | — | sim (D-HYD-011/014) | sim |
+| Alias de tipo | — | fora da gramática; exemplo 36 corrigido | sim |
+
+**Resultado F1-04:** portões de orçamento **passam** no rascunho. Fase 1 ainda não congelada — faltam decisões contextuais (§8 da especificação).
+
 
 ## Comandos úteis
 
@@ -87,10 +104,10 @@ gh run watch <id> --repo JoaoGaValentim/hydra-lang --exit-status
 | Formas de função (retorno) | 3 | 1 | `[ : Tipo ]` + bloco ou `= expr` |
 | Comentários | 2 | 1 | `//` |
 | `;` | opcional | 0 (newline) | rascunho |
-| Exemplos `.hy` | — | 30+ | **39** |
+| Exemplos `.hy` | — | 30+ | **40** |
 
 ## Histórico imediato
 
 - Ciclo 1: clone, docs, remotos, auditoria inicial.
 - Ciclo 2: baseline; esqueleto; commit+push `4123122`.
-- Ciclo 3: fix CI (clone antes de setup-java) `e0b3dce` — CI verde; ESPECIFICACAO rascunho; 39 exemplos; §17 da auditoria fechado; D-HYD-011..013.
+- Ciclo 3: fix CI (clone antes de setup-java) `e0b3dce` — CI verde; ESPECIFICACAO rascunho; 40 exemplos; §17 da auditoria fechado; D-HYD-011..013.
