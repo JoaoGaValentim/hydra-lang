@@ -310,6 +310,18 @@ public final class Lexer {
             case '?':
                 advance();
                 return new Token(TokenKind.QUESTION, "?", startLine, startCol);
+            case ';':
+                advance();
+                return Token.error(
+                        "Hydra não usa ';' — termine a instrução com newline",
+                        startLine, startCol);
+            case '$':
+            case '@':
+            case '`':
+                advance();
+                return Token.error(
+                        "caractere inválido '" + c + "' (não faz parte da sintaxe Hydra)",
+                        startLine, startCol);
             default:
                 advance();
                 return Token.error("caractere inválido '" + c + "'", startLine, startCol);

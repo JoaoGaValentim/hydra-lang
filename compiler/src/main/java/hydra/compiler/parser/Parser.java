@@ -19,20 +19,36 @@ import java.util.Map;
 public final class Parser {
 
     private final List<Token> toks;
+    private final String[] lines;
     private int i;
 
-    private Parser(List<Token> tokens) {
+    private Parser(List<Token> tokens, String source) {
         this.toks = tokens;
+        this.lines = source == null ? new String[0] : source.split("\n", -1);
     }
 
     public static Unit parse(String source) {
-        List<Token> tokens = new Lexer(source).tokenize();
+        String src = source == null ? "" : source;
+        List<Token> tokens = new Lexer(src).tokenize();
         for (Token t : tokens) {
             if (t.kind() == TokenKind.ERROR) {
-                throw new SyntaxError(t.text(), t.line(), t.col());
+                throw new SyntaxError(t.text(), t.line(), t.col(), "HYP010", hintForLexerError(t.text()));
             }
         }
-        return new Parser(tokens).parseUnit();
+        return new Parser(tokens, src).parseUnit();
+    }
+
+    private static String hintForLexerError(String msg) {
+        if (msg.contains("';'")) {
+            return "remova o ';' — em Hydra o fim de instrução é a newline";
+        }
+        if (msg.contains("string não fechada")) {
+            return "feche a string com aspas duplas na mesma linha (sem interpolação)";
+        }
+        if (msg.contains("escape inválido")) {
+            return "escapes válidos: \\n \\t \\\" \\\\";
+        }
+        return null;
     }
 
     // ---- helpers ----
@@ -62,13 +78,74 @@ public final class Parser {
     private Token expect(TokenKind k, String what) {
         if (!check(k)) {
             Token t = peek();
-            throw new SyntaxError("esperava " + what + ", achou " + t.kind(), t.line(), t.col());
+            throw err("esperava " + what + ", achou " + describe(t), t, "HYP001", hintExpect(k, t, what));
         }
         return toks.get(i++);
     }
 
     private Token expectIdent(String what) {
         return expect(TokenKind.IDENT, what);
+    }
+
+    private SyntaxError err(String msg, Token t, String code, String suggestion) {
+        String context = lineContext(t.line(), t.col());
+        String full = context.isEmpty() ? msg : msg + "\n  " + context;
+        return new SyntaxError(full, t.line(), t.col(), code, suggestion);
+    }
+
+    /** Trecho da linha de origem com marcador de coluna (para diagnóstico). */
+    private String lineContext(int line, int col) {
+        if (lines.length == 0 || line < 1 || line > lines.length) {
+            return "";
+        }
+        String text = lines[line - 1];
+        if (text.isBlank()) {
+            return "";
+        }
+        String shown = text.length() > 120 ? text.substring(0, 117) + "..." : text;
+        int caret = Math.max(1, Math.min(col, shown.length() + 1));
+        return shown + "\n  " + " ".repeat(caret - 1) + "^";
+    }
+
+    private static String describe(Token t) {
+        if (t.kind() == TokenKind.EOF) return "fim do arquivo";
+        if (t.kind() == TokenKind.STRING) return "string \"" + t.text() + "\"";
+        if (t.kind() == TokenKind.IDENT || t.kind() == TokenKind.INT || t.kind() == TokenKind.FLOAT) {
+            return "'" + t.text() + "'";
+        }
+        return t.kind().name();
+    }
+
+    /** Sugestões para os erros mais comuns de migração/sintaxe. */
+    private String hintExpect(TokenKind expected, Token found, String what) {
+        if (found.kind() == TokenKind.EOF) {
+            return "arquivo terminou antes de " + what + " — verifique chaves/parênteses não fechados";
+        }
+        if (expected == TokenKind.COLON && found.kind() == TokenKind.IDENT) {
+            return "em Hydra parâmetros e campos usam 'nome: Tipo' (ex.: x: Int)";
+        }
+        if (expected == TokenKind.COLON && found.kind() != TokenKind.COLON) {
+            return "esperava ':' após o nome (forma: nome: Tipo)";
+        }
+        if (expected == TokenKind.LPAREN && found.kind() == TokenKind.IDENT) {
+            Token n = peek(1);
+            if (n.kind() != TokenKind.LPAREN) {
+                return "funções em Hydra não têm palavra-chave: escreva nome(params) { ... }";
+            }
+        }
+        if (expected == TokenKind.RPAREN && found.kind() == TokenKind.LBRACE) {
+            return "faltou fechar os parênteses dos parâmetros antes do corpo";
+        }
+        if (expected == TokenKind.LBRACE && found.kind() == TokenKind.COLON) {
+            return "corpo de função precisa de '{ ... }' ou '= expr'";
+        }
+        if (expected == TokenKind.ARROW && found.kind() == TokenKind.IDENT && "in".equals(found.text())) {
+            return "for-in: for (val x in colecao) { ... }";
+        }
+        if (found.kind() == TokenKind.TYPE) {
+            return "use 'type' (não 'class'/'record') para declarações de tipo";
+        }
+        return null;
     }
 
     private void skipNewlines() {
@@ -109,6 +186,20 @@ public final class Parser {
         if (check(TokenKind.ENUM)) {
             return parseEnumDecl();
         }
+        // fun/fn/func/class/record não são keywords Hydra — erro honesto
+        if (check(TokenKind.IDENT)) {
+            String w = peek().text();
+            if ("fun".equals(w) || "fn".equals(w) || "func".equals(w)) {
+                Token bad = peek();
+                throw err("'" + w + "' não existe em Hydra", bad, "HYP012",
+                        "funções: nome(params) { ... } — sem palavra-chave");
+            }
+            if ("class".equals(w) || "record".equals(w)) {
+                Token bad = peek();
+                throw err("'" + w + "' não existe em Hydra", bad, "HYP013",
+                        "tipos: type Nome(campos) { métodos } · dados: enum Nome { Casos }");
+            }
+        }
         // fun-decl: ident ( params ) [ : typ ] bloco| = expr
         // test/application contextuais: ident STRING bloco | application { ... }
         Token nameTok = expectIdent("declaração");
@@ -127,7 +218,8 @@ public final class Parser {
             Block body = parseBlockBody();
             return new FunDecl("application", List.of(), null, body, nameTok);
         }
-        throw new SyntaxError("esperava '(' para função, 'type' ou 'enum'", nameTok.line(), nameTok.col());
+        throw err("esperava '(' para função, 'type' ou 'enum'", nameTok, "HYP002",
+                "função: nome(params) { ... } · tipo: type Nome(...) { ... } · enum: enum Nome { Casos }");
     }
 
     private Decl parseEnumDecl() {
@@ -141,7 +233,8 @@ public final class Parser {
         }
         expect(TokenKind.RBRACE, "}");
         if (cases.isEmpty()) {
-            throw new SyntaxError("enum sem casos: " + name, start.line(), start.col());
+            throw err("enum sem casos: " + name, start, "HYP003",
+                    "enum Color { Red Green Blue } — casos separados por newline (sem vírgulas)");
         }
         return new EnumDecl(name, cases, start);
     }
@@ -201,7 +294,12 @@ public final class Parser {
         if (!check(TokenKind.RPAREN)) {
             do {
                 Token pName = expectIdent("parâmetro");
-                expect(TokenKind.COLON, ":");
+                if (!check(TokenKind.COLON)) {
+                    Token bad = peek();
+                    throw err("esperava ':' após parâmetro '" + pName.text() + "', achou " + describe(bad),
+                            bad, "HYP008", "forma: " + pName.text() + ": Tipo  (ex.: x: Int)");
+                }
+                i++; // :
                 TypeRef type = parseTypeRef();
                 params.add(new Param(pName.text(), type, pName));
             } while (match(TokenKind.COMMA));
@@ -220,6 +318,11 @@ public final class Parser {
             Expr e = parseExpr();
             Block body = new Block(List.of(new ReturnStmt(e, e.pos())), e.pos());
             return new FunDecl(name, params, ret, body, nameTok);
+        }
+        if (isWord("fun") || isWord("fn") || isWord("func")) {
+            Token bad = peek();
+            throw err("esperava '{' ou '=' após assinatura de função", bad, "HYP009",
+                    "Hydra não usa fun/fn/func — a função já começou em '" + name + "'; corpo: { ... } ou = expr");
         }
         // método abstrato (assinatura sem corpo) — só em type-decl
         return new FunDecl(name, params, ret, null, nameTok);
@@ -367,6 +470,14 @@ public final class Parser {
                 boolean mutable = check(TokenKind.VAR);
                 Token declTok = toks.get(i++);
                 Token name = expectIdent("variável");
+                if (!check(TokenKind.EQ)) {
+                    Token bad = peek();
+                    if (bad.kind() == TokenKind.IDENT) {
+                        throw err("esperava '=' no for clássico, achou '" + bad.text() + "'", bad, "HYP004",
+                                "for-in: for " + name.text() + " in colecao { ... } · "
+                                        + "clássico: for (var i = 0, i < n, i = i + 1) { ... }");
+                    }
+                }
                 expect(TokenKind.EQ, "=");
                 Expr initVal = parseExpr();
                 VarDecl init = new VarDecl(mutable, name.text(), null, initVal, declTok);
@@ -395,7 +506,8 @@ public final class Parser {
             // `in` é contextual
             Token inTok = peek();
             if (inTok.kind() != TokenKind.IDENT || !"in".equals(inTok.text())) {
-                throw new SyntaxError("esperava 'in' no for-in", inTok.line(), inTok.col());
+                throw err("esperava 'in' no for-in", inTok, "HYP004",
+                        "for (val x in colecao) { ... } ou for (var i = 0, i < n, i = i + 1) { ... }");
             }
             i++;
             Expr iter = parseExpr();
@@ -416,6 +528,11 @@ public final class Parser {
         List<CatchClause> catches = new ArrayList<>();
         while (match(TokenKind.CATCH)) {
             expect(TokenKind.LPAREN, "(");
+            if (check(TokenKind.IDENT) && peek(1).kind() == TokenKind.IDENT) {
+                Token bad = peek(1);
+                throw err("catch em Hydra não declara tipo: catch (" + peek().text() + ")", bad, "HYP011",
+                        "escreva catch (e) { ... } — o tipo do erro é String (throw \"msg\")");
+            }
             Token name = expectIdent("nome do catch");
             expect(TokenKind.RPAREN, ")");
             Block cbody = parseBlock();
@@ -470,7 +587,8 @@ public final class Parser {
                     patternType = lit.kind() == TokenKind.STRING ? "\"" + lit.text() + "\"" : lit.text();
                 } else {
                     Token t = peek();
-                    throw new SyntaxError("padrão inválido em case", t.line(), t.col());
+                    throw err("padrão inválido em case", t, "HYP005",
+                            "case Color.Red -> ... | case String s -> ... | default -> ...");
                 }
                 Expr guard = null;
                 if (match(TokenKind.IF)) {
@@ -481,7 +599,8 @@ public final class Parser {
                 arms.add(new CaseArm(patternType, patternName, guard, result, result.pos()));
             } else {
                 Token t = peek();
-                throw new SyntaxError("esperava case/default no match", t.line(), t.col());
+                throw err("esperava case/default no match", t, "HYP006",
+                        "match (x) { case P -> expr; default -> expr }");
             }
         }
         expect(TokenKind.RBRACE, "}");
@@ -668,8 +787,16 @@ public final class Parser {
             case IDENT:
                 i++;
                 return new IdentExpr(t.text(), t);
-            default:
-                throw new SyntaxError("expressão inesperada: " + t.kind(), t.line(), t.col());
+            default: {
+                Token t2 = peek();
+                String hint = null;
+                if (t2.kind() == TokenKind.TYPE) {
+                    hint = "use 'type' para declarações; expressões não começam com 'type'";
+                } else if (t2.kind() == TokenKind.EOF) {
+                    hint = "expressão incompleta no fim do arquivo";
+                }
+                throw err("expressão inesperada: " + describe(t2), t2, "HYP007", hint);
+            }
         }
     }
 

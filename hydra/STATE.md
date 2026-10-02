@@ -1,7 +1,7 @@
 # STATE — Hydra
 
-**Última atualização:** 2026-10-01 (Ciclo 7 — F2-04 paridade fechada)
-**Fase atual:** 2 — Frontend (F2-02/F2-04 feitos; F2-03 bordas abertas)
+**Última atualização:** 2026-10-02 (Ciclo 8 — Fase 2 fechada)
+**Fase atual:** 2 → 3 (frontend completo; próximo = IR)
 **Operador:** MiMo 2.5 (engenheiro-chefe autônomo)
 
 ---
@@ -9,48 +9,57 @@
 ## Em que estou
 
 - Repo: `https://github.com/JoaoGaValentim/hydra-lang`.
-- Fase 1 congelada; Fase 2: lexer + parser + **paridade AST com Kof**.
-- `compiler/`: **42/42 testes verdes** (lexer 12 + parser 21 + parity 9).
-- CI: `structure` + `upstream-compile` + `hydra-compiler` (instala Kof antes dos testes).
-- `hydra/PARITY.md`: contrato de equivalência AST Hydra ↔ Kof.
+- **Fase 2 fechada**: lexer + parser + paridade + diagnósticos.
+- `compiler/`: **55/55 testes verdes** (12 lexer + 21 parser + 9 parity + 13 diagnostics).
+- CI: `structure` + `upstream-compile` + `hydra-compiler`.
 
 ## O que funciona
 
-- Lexer: 20 keywords, operadores, strings, `//`, posições.
-- Parser: unit, import, fun (bloco, `= expr`, abstrato), type, enum, stmts, exprs, lambda, match.
-- **Paridade**: fontes pareadas hello/val-var/funcoes/erros/enum/type/lambdas — shapes coincidem após normalização sintática documentada.
-- Dep test-scoped: `dev.kof:kof-compiler:0.5.0-beta` (instalado local/CI).
+- Lexer: 20 keywords; erros honestos (`;`, string, escape) com sugestão.
+- Parser: unit, import, fun, type, enum, stmts, exprs, lambda, match.
+- Paridade: shapes Hydra ↔ Kof (`hydra/PARITY.md`).
+- Diagnósticos: `SyntaxError` com `code` (HYP00x), `suggestion`, contexto de linha com `^`.
 
-## Baseline Kof (medida, macOS)
+## Códigos de erro (F2-03)
 
-808/155F/8E/26S focado · Native inexecutável no macOS · shade `kof-cli` quebra (BLQ-01).
+| Code | Caso |
+|---|---|
+| HYP000 | genérico |
+| HYP001 | `expect` falhou (com hint contextual) |
+| HYP002 | decl inválida no topo |
+| HYP003 | enum sem casos |
+| HYP004 | for-in / for clássico confuso |
+| HYP005 | padrão `case` inválido |
+| HYP006 | `case` fora de `match` |
+| HYP007 | expressão inesperada |
+| HYP008 | parâmetro sem `:` |
+| HYP009 | assinatura sem corpo/`=` |
+| HYP010 | erro de lexer |
+| HYP011 | `catch (String e)` — tipo proibido |
+| HYP012 | `fun`/`fn`/`func` |
+| HYP013 | `class`/`record` |
 
 ## Orçamento (F1-04)
 
-20 keywords · EBNF ~71 · formas 1/2/1 · 40 exemplos · testes 42/42.
-
-## Pendências F2
-
-- F2-03: diagnósticos — bordas + sugestão.
-- Exemplos 20, 21, 24, 25, 26, 30, 31, 37 fora do teste unitário (parseiam, sem assert).
+20 keywords · EBNF ~71 · 40 exemplos · testes 55/55.
 
 ## Próxima ação
 
-1. F2-03: bordas de erro + sugestões em SyntaxError.
-2. Fechar Fase 2; abrir Fase 3 (IR a partir da AST).
+1. Abrir **Fase 3**: F3-01 IR a partir da AST Hydra (contrato estável; espelhar IR do Kof).
+2. Programa mínimo `01-hello` → IR → execução.
 
 ## Comandos
 
 ```bash
 cd compiler && mvn -B test
 gh run list --repo JoaoGaValentim/hydra-lang --limit 5
-gh run watch --repo JoaoGaValentim/hydra-lang <run-id>
 ```
 
 ## Histórico
 
-- Ciclo 1–3: reconhecimento, skeleton, spec rascunho.
-- Ciclo 4: Fase 1 congelada + lexer 12/12.
-- Ciclo 5: parser núcleo + 29/29 + D-HYD-019..020.
-- Ciclo 6: enum + destructuring + função-tipo; 33/33.
-- Ciclo 7: F2-04 paridade AST (9/9) + PARITY.md + CI com Kof.
+- Ciclo 1–3: reconhecimento, skeleton, spec.
+- Ciclo 4: Fase 1 congelada + lexer.
+- Ciclo 5: parser núcleo.
+- Ciclo 6: enum/destructuring/função-tipo.
+- Ciclo 7: F2-04 paridade + CI Kof.
+- Ciclo 8: F2-03 diagnósticos + **Fase 2 fechada**.
