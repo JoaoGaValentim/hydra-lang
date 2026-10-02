@@ -1,25 +1,31 @@
 # STATE — Hydra
 
-**Última atualização:** 2026-10-02 (Ciclo 14 — F6-01b fmt canônico)
-**Fase atual:** 6 (CLI + fmt); new/test = F6-01b restante; F5 stdlib em aberto
+**Última atualização:** 2026-10-02 (Ciclo 16 — match/enum/paridade corrigidos)
+**Fase atual:** 6 fechada; F5 stdlib é a próxima
 **Operador:** MiMo 2.5 (engenheiro-chefe autônomo)
 
 ---
 
 ## Em que estou
 
-- Repo: `https://github.com/JoaoGaValentim/hydra-lang`.
-- Fases 2–4 fechadas no subset; F6-01 + F6-01b (fmt) fechados.
-- `compiler/`: **176/176 testes verdes**.
+- Repo: `https://github.com/JoaoValentim/hydra-lang` (ver remoto: `JoaoGaValentim/hydra-lang`).
+- Fases 2–4 fechadas no subset; F6 completa (check/run/migrate/fmt/new/test).
+- `compiler/`: **205/205 testes verdes**.
+- Paridade de corpus: **36/39** exemplos com saída idêntica JVM≡JS; os 3 restantes
+  são stdlib v1 (`listOf`/`setOf`/`readLine`) com erro honesto, não silêncio.
 - CI: `structure` + `upstream-compile` + `hydra-compiler`.
 
 ## O que funciona
 
 - Lexer/parser/diagnósticos HYP001..013; paridade AST com Kof.
-- IR + backends JVM e JS; paridade de alvos no subset.
+- IR + backends JVM e JS; paridade de alvos no subset (try/catch, assert,
+  throw String, concat universal, match com literais/guardas/bindings,
+  enum=String, retorno de cauda inferido).
 - **Migrator** (F4): `.kf` → `.hy` + corpus Kof.
-- **CLI** (F6): `hydra check|run|migrate|fmt|version` (`bin/hydra`).
+- **CLI** (F6): `hydra check|run|test|new|migrate|fmt|version` (`bin/hydra`).
 - **Formatter** (F6-01b): reprint canônico + `//` por linha (D-HYD-026).
+- **Test runner** (F6-01b): `test "nome" { assert(…) }` → PASS/FAIL, exit != 0,
+  JVM e JS; `assert` é op de IR (D-HYD-027).
 
 ## Pipeline atual
 
@@ -29,28 +35,34 @@
   ├─ JvmBackend → Main.class  (hydra run)
   └─ JsBackend  → main.js     (hydra run --js)
 .hy → Formatter → canônico    (hydra fmt)
-CLI: hydra check | run | migrate | fmt
+test "…" → TestRunner (harness em AST) → JvmBackend/JsBackend → PASS/FAIL
+CLI: hydra check | run | test | new | migrate | fmt
 ```
 
 ## Limites v1 (honestos)
 
-- Sem objetos/`type` em runtime; enum vira string; lambda: IR rejeita (v2).
-- try/catch JS na v2; Native: **BLQ-02** (macOS).
+- Campos/objetos (`LoadField`), lambda e `application` main: erro honesto (v2).
+- Stdlib de coleções (`listOf`/`setOf`/`readLine`): Fase 5 — hoje o backend
+  emite a chamada e falha em runtime; o IR ainda não bloqueia.
+- Native: **BLQ-02** (macOS).
 - Migrator: finally/do-while/break/implements/generics/arrays → MIG0xx.
-- CLI: `new`/`test` ainda deferred; migração não preserva comentários Kof.
+- CLI: migração não preserva comentários Kof.
 
 ## Próxima ação
 
-1. **F6-01b restante**: `hydra new` + `hydra test`.
-2. **Fase 5**: stdlib com orçamento.
-3. Backend JVM v2 quando a stdlib pedir `type`/enum em runtime.
+1. **Fase 5**: stdlib com orçamento — `listOf`/`setOf`/`mapOf`/`readLine` no IR
+   (ou rejeição honesta no IR antes do backend; decidir na fase).
+2. Backend JVM v2: `type`/campos (exemplos 04/05/10/30) e lambda.
+3. `hydra build` (hydra.toml multi-arquivo) quando a stdlib pedir.
 
 ## Comandos
 
 ```bash
 cd compiler && mvn -B test
 (cd compiler && mvn -B -DskipTests package) && bin/hydra check hydra/exemplos/01-hello.hy
-bin/hydra fmt hydra/exemplos/01-hello.hy
+bin/hydra new /tmp/app && bin/hydra test /tmp/app/tests
+bin/hydra test hydra/exemplos/26-teste.hy
+for f in hydra/exemplos/*.hy; do diff <(bin/hydra run $f) <(bin/hydra run $f --js); done
 gh run list --repo JoaoGaValentim/hydra-lang --limit 5
 ```
 
@@ -64,3 +76,5 @@ gh run list --repo JoaoGaValentim/hydra-lang --limit 5
 - Ciclo 12: **F4-01/F4-02 migrate + corpus** (Fase 4 fechada no subset).
 - Ciclo 13: **F6-01 CLI check/run/migrate**.
 - Ciclo 14: **F6-01b fmt canônico + preservação de //.**
+- Ciclo 15: **F6-01b new/test + assert no IR + paridade try/catch/bool (Fase 6 fechada).**
+- Ciclo 16: **match/enum/POP tipados + retorno de cauda (D-HYD-028); corpus JVM≡JS 36/39.**

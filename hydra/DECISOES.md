@@ -194,6 +194,20 @@ Formato curto:
 - Consequências: `FormatterTest` 57 testes (unit + corpus 39 exemplos parseáveis); CLI fmt em `CliTest`; `new`/`test` continuam deferred.
 - Data: 2026-10-02
 
+### D-HYD-027 — `assert` vira op de IR; throw/catch são String em todos os alvos (F6-01b)
+- Contexto: `hydra test` precisa rodar `test "nome" { assert(cond, "msg") }` de verdade no JVM e no JS. `assert` era built-in documentado mas caía como chamada desconhecida; `throw "msg"` perdia a mensagem no JVM e `catch (e)` bindava Throwable; o flaky frame do ASM aparecia com dois try/catch seguidos (pareamento de handler por bloco adjacente).
+- Decisão: `assert(cond)`/`assert(cond, "msg")` é lowering direto no topo de um statement — `Ir.Assert(message)` (não vira `Call`); arity errada é erro honesto. `Throw` carrega String (qualquer valor não-String passa por `Ir.ToString`); `CatchStart` produz String no `e` (JVM extrai `getMessage()`); o pareamento TryStart/TryEnd↔CatchStart usa **fila de regiões fechadas**, não o "try ativo". `Ir.ToString` dá concat universal (`"n=" + 42`, float/bool com forma JVM) e o JS imprime Bool como `true/false` e Float com `.0` para paridade. `Ir.safeName` sanitiza nomes de método (`test "nome com espaço"` → `test_nome_com_espaço`). O TestRunner sintetiza o harness na AST (substitui `main`, PASS/FAIL por teste, exit != 0), sem sintaxe nova.
+- Alternativas descartadas: `assert` como função de stdlib (não existe runtime stdlib ainda; perderia o throw tipado); try/catch JS continuar ignorado (quebraria paridade do runner); catch tipado na linguagem (o erro é String por contrato).
+- Consequências: `hydra test` roda em JVM e JS com o mesmo resultado; `hydra new` nasce com smoke test; `IrTest`/`JvmBackendE2ETest`/`JsBackendE2ETest`/`CliTest` cobrem os caminhos.
+- Data: 2026-10-02
+
+### D-HYD-028 — `match` correto no IR; enum = String no runtime; POP tipado (F6-01b+)
+- Contexto: a varredura de paridade do corpus (39 exemplos) expôs código **silenciosamente errado** antes escondido: `case 1`/`case true`/`case String s` nunca testavam nada (só o padrão de enum testava); o resultado de `match`-expressão saía de um temp `Any`; `Pop` de Int/Float emitia `POP` (1 slot) em cima de `long`/`double` (2 slots) → `VerifyError`; o sujeito do match era reavaliado por braço; `case Point x y` não ligava `x`/`y`; retorno de cauda sem anotação (`tripla(x: Int) = x * 3`) virava `void`.
+- Decisão: no IR, o sujeito do `match` é materializado uma vez num temp tipado e cada teste é um bloco dedicado que empilha exatamente 1 Bool (literal, enum-string, tipo→`!= null`, ou sempre-verdadeiro quando o tipo estático já casa); guards e bindings rodam no bloco do braço; destructuring lê campos do sujeito. `Pop` carrega `Type` (`POP` vs `POP2`). Enums são **String** no runtime (constante `"Tipo.Caso"`) inclusive em assinaturas — a classe-enum do IR permanece só como metadado dos casos. Retorno de cauda é inferido (join Int/Float→Float; conflito→Any; sem return→Void). Refinamento de tipo do binding não existe na v1 (o nome do padrão é cópia do sujeito).
+- Alternativas descartadas: manter match "quase certo" (viola Q2/no-silent-fallback — o corpus já provava a divergência); objetos-enum de verdade no runtime (backend v2); `checker` separado agora (o IR já tem tipos suficientes para o subset).
+- Consequências: 36/39 exemplos com saída idêntica JVM≡JS (faltam `listOf`/`setOf`/`readLine`/campos = Fase 5/v2, com erro honesto). Regressões cobertas em `JvmBackendE2ETest`/`JsBackendE2ETest`; `IrTest.enumAndMatch` alinhado a "enum = String".
+- Data: 2026-10-02
+
 ---
 
 *Novas decisões entram aqui no ciclo em que forem tomadas (seção 8, passo 8).*

@@ -71,8 +71,8 @@ public final class Ir {
 
     public record Return(Type returnType) implements Op {}
 
-    public record Pop() implements Op {}
-
+    /** Descarta o topo da pilha; Type decide POP (1 slot) vs POP2 (2 slots). */
+    public record Pop(Type type) implements Op {}
     /** Salto incondicional para bloco índice. */
     public record Jump(int targetBlock) implements Op {}
 
@@ -89,8 +89,27 @@ public final class Ir {
 
     public record StoreField(String typeName, String fieldName, Type fieldType) implements Op {}
 
+    /** Desempilha valor e empilha sua forma String ("1", "true", ...). */
+    public record ToString(Type fromType) implements Op {}
+
     /** Desempilha valor de erro e lança. */
     public record Throw() implements Op {}
+
+    /** Desempilha a condição Bool; se falsa, lança erro com a mensagem. */
+    public record Assert(String message) implements Op {}
+
+    /** Nome seguro para backends (JVM/JS): test "x y" → test_x_y. */
+    public static String safeName(String name) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            sb.append(Character.isJavaIdentifierPart(c) ? c : '_');
+        }
+        String s = sb.toString();
+        if (s.isEmpty()) return "_";
+        if (!Character.isJavaIdentifierStart(s.charAt(0))) return "_" + s;
+        return s;
+    }
 
     /** Início de região try; endereço de handler é o próximo JumpIf... do catch. */
     public record TryStart() implements Op {}
@@ -178,7 +197,7 @@ public final class Ir {
         if (op instanceof Return r) {
             return "return(" + r.returnType().name() + ")";
         }
-        if (op instanceof Pop) return "pop";
+        if (op instanceof Pop p) return "pop(" + p.type().name() + ")";
         if (op instanceof Jump j) return "jump(" + j.targetBlock() + ")";
         if (op instanceof JumpIfFalse jf) return "jumpIfFalse(" + jf.targetBlock() + ")";
         if (op instanceof LoadEnum le) return "loadEnum(" + le.enumName() + "." + le.caseName() + ")";
@@ -194,6 +213,8 @@ public final class Ir {
             return "storeField(" + sf.typeName() + "." + sf.fieldName() + "; " + sf.fieldType().name() + ")";
         }
         if (op instanceof Throw) return "throw";
+        if (op instanceof ToString ts) return "toString(" + ts.fromType().name() + ")";
+        if (op instanceof Assert a) return "assert(" + a.message() + ")";
         if (op instanceof TryStart) return "tryStart";
         if (op instanceof TryEnd) return "tryEnd";
         if (op instanceof CatchStart cs) {

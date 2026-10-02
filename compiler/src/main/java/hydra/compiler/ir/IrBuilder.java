@@ -18,21 +18,50 @@ public final class IrBuilder {
     private final Map<String, Ir.Type> typeOf = new HashMap<>();
     private final Map<String, List<Ir.Type>> funParams = new HashMap<>();
     private final Map<String, Ir.Type> funRet = new HashMap<>();
+    private final java.util.Set<String> enumNames = new java.util.HashSet<>();
     private String currentTypeOwner;
 
     public Ir.Module build(Ast.Unit unit, String moduleName) {
+        // pass 0: nomes de enum (viram String no runtime — D-HYD-028)
         for (Ast.Decl d : unit.decls()) {
-            if (d instanceof Ast.FunDecl f) {
-                funParams.put(f.name(), paramTypes(f.params()));
-                funRet.put(f.name(), retType(f.returnType()));
-            } else if (d instanceof Ast.TypeDecl t) {
+            if (d instanceof Ast.EnumDecl e) {
+                enumNames.add(e.name());
+            }
+        }
+        // pass 1: tipos conhecidos
+        for (Ast.Decl d : unit.decls()) {
+            if (d instanceof Ast.TypeDecl t) {
                 for (Ast.Field fl : t.fields()) {
-                    typeOf.put(t.name() + "." + fl.name(), irType(fl.type()));
+                    typeOf.put(t.name() + "." + fl.name(), irTypeDecl(fl.type()));
                 }
                 typeOf.put(t.name(), new Ir.Type(t.name()));
             } else if (d instanceof Ast.EnumDecl e) {
-                typeOf.put(e.name(), new Ir.Type(e.name()));
+                typeOf.put(e.name(), Ir.Type.STRING);
             }
+        }
+        // pass 2: assinaturas (já sabem quais nomes são enum)
+        for (Ast.Decl d : unit.decls()) {
+            if (d instanceof Ast.FunDecl f) {
+                funParams.put(f.name(), paramTypesDecl(f.params()));
+                if (f.returnType() != null) {
+                    funRet.put(f.name(), retTypeDecl(f.returnType()));
+                }
+            }
+        }
+        // pass 3: retorno de funções sem anotação, inferido da expressão/corpo
+        // (`tripla(x: Int) = x * 3`); fixpoint curto para encadear chamadas
+        for (int round = 0; round < 4; round++) {
+            boolean changed = false;
+            for (Ast.Decl d : unit.decls()) {
+                if (d instanceof Ast.FunDecl f && f.returnType() == null) {
+                    Ir.Type inferred = inferRetType(f);
+                    if (!inferred.equals(funRet.get(f.name()))) {
+                        funRet.put(f.name(), inferred);
+                        changed = true;
+                    }
+                }
+            }
+            if (!changed) break;
         }
 
         List<Ir.Class> classes = new ArrayList<>();
@@ -56,17 +85,20 @@ public final class IrBuilder {
             }
         }
 
-        classes.add(0, new Ir.Class("Main", "Object", topFields, topMethods, enumCases));
+        classes.add(0, new Ir.Class("Main", "Object", topFields, topMethods, List.of()));
         return new Ir.Module(moduleName, List.copyOf(classes), imports, null);
     }
 
     private Ir.Method lowerFun(Ast.FunDecl f) {
-        MethodCtx ctx = new MethodCtx(retType(f.returnType()), paramTypes(f.params()));
+        Ir.Type ret = f.returnType() != null
+                ? retTypeDecl(f.returnType())
+                : funRet.getOrDefault(f.name(), Ir.Type.VOID);
+        MethodCtx ctx = new MethodCtx(ret, paramTypesDecl(f.params()));
         for (Ast.Param p : f.params()) {
-            ctx.declare(p.name(), irType(p.type()));
+            ctx.declare(p.name(), irTypeDecl(p.type()));
         }
         String prevOwner = currentTypeOwner;
-        lowerBlock(f.body(), ctx);
+        lowerBlock(tailReturn(f.body(), ctx), ctx);
         currentTypeOwner = prevOwner;
         ctx.ensureTerminated();
         return new Ir.Method(
@@ -75,6 +107,90 @@ public final class IrBuilder {
                 ctx.paramTypes,
                 List.copyOf(ctx.locals),
                 List.copyOf(ctx.blocks));
+    }
+
+    /**
+     * Retorno de cauda: numa função não-void, a última expressão do corpo é o
+     * resultado (mesma regra em toda função — exemplos canônicos 06/09/10/35).
+     * `return` continua para saída antecipada; não há uma terceira forma.
+     */
+    /**
+     * Tipo de retorno de função sem anotação: join dos `return` do corpo.
+     * Aproximação estática do IR (sem checker): Int+Float→Float, qualquer
+     * conflito com Void/Any→Any; sem return→Void.
+     */
+    private Ir.Type inferRetType(Ast.FunDecl f) {
+        if (f.body() == null) return Ir.Type.VOID;
+        MethodCtx probe = new MethodCtx(Ir.Type.VOID, paramTypesDecl(f.params()));
+        for (Ast.Param p : f.params()) {
+            probe.declare(p.name(), irTypeDecl(p.type()));
+        }
+        List<Ir.Type> found = new ArrayList<>();
+        collectReturns(f.body().stmts(), probe, found, 0);
+        Ir.Type joined = null;
+        for (Ir.Type t : found) {
+            if (joined == null) {
+                joined = t;
+            } else if (!joined.equals(t)) {
+                if (Ir.Type.INT.equals(joined) && Ir.Type.FLOAT.equals(t)
+                        || Ir.Type.FLOAT.equals(joined) && Ir.Type.INT.equals(t)) {
+                    joined = Ir.Type.FLOAT;
+                } else {
+                    return Ir.Type.ANY;
+                }
+            }
+        }
+        return joined == null ? Ir.Type.VOID : joined;
+    }
+
+    private void collectReturns(List<Ast.Stmt> stmts, MethodCtx probe, List<Ir.Type> out, int depth) {
+        if (depth > 16) return;
+        for (int stmtIdx = 0; stmtIdx < stmts.size(); stmtIdx++) {
+            Ast.Stmt s = stmts.get(stmtIdx);
+            boolean tail = stmtIdx == stmts.size() - 1;
+            if (s instanceof Ast.ReturnStmt r) {
+                out.add(r.value() != null ? typeOfExpr(r.value(), probe) : Ir.Type.VOID);
+            } else if (s instanceof Ast.VarDecl v) {
+                Ir.Type t = v.type() != null
+                        ? irTypeDecl(v.type())
+                        : v.init() != null ? typeOfExpr(v.init(), probe) : Ir.Type.ANY;
+                if (probe.tryIndex(v.name()) == null) probe.declare(v.name(), t);
+            } else if (s instanceof Ast.Block b) {
+                collectReturns(b.stmts(), probe, out, depth + 1);
+            } else if (s instanceof Ast.IfStmt ifs) {
+                collectReturns(ifs.thenBlock().stmts(), probe, out, depth + 1);
+                if (ifs.elseBlock() != null) {
+                    collectReturns(ifs.elseBlock().stmts(), probe, out, depth + 1);
+                } else if (tail) {
+                    out.add(Ir.Type.VOID);
+                }
+            } else if (s instanceof Ast.ForStmt fo) {
+                collectReturns(fo.body().stmts(), probe, out, depth + 1);
+            } else if (s instanceof Ast.TryStmt t) {
+                collectReturns(t.body().stmts(), probe, out, depth + 1);
+                for (Ast.CatchClause c : t.catches()) {
+                    if (probe.tryIndex(c.name()) == null) probe.declare(c.name(), Ir.Type.STRING);
+                    collectReturns(c.body().stmts(), probe, out, depth + 1);
+                }
+            } else if (s instanceof Ast.MatchStmt m) {
+                for (Ast.CaseArm arm : m.cases()) {
+                    if (arm.result() != null) out.add(typeOfExpr(arm.result(), probe));
+                }
+            } else if (s instanceof Ast.ExprStmt es && tail) {
+                out.add(typeOfExpr(es.expr(), probe));
+            }
+        }
+    }
+
+    private Ast.Block tailReturn(Ast.Block body, MethodCtx ctx) {
+        if (ctx.returnType.isVoid() || body.stmts().isEmpty()) return body;
+        Ast.Stmt last = body.stmts().get(body.stmts().size() - 1);
+        if (!(last instanceof Ast.ExprStmt es) || typeOfExpr(es.expr(), ctx).isVoid()) {
+            return body;
+        }
+        List<Ast.Stmt> stmts = new ArrayList<>(body.stmts());
+        stmts.set(stmts.size() - 1, new Ast.ReturnStmt(es.expr(), es.pos()));
+        return new Ast.Block(stmts, body.pos());
     }
 
     private Ir.Class lowerType(Ast.TypeDecl t) {
@@ -100,7 +216,7 @@ public final class IrBuilder {
     private void lowerStmt(Ast.Stmt s, MethodCtx ctx) {
         if (s instanceof Ast.VarDecl v) {
             Ir.Type t = v.type() != null
-                    ? irType(v.type())
+                    ? irTypeDecl(v.type())
                     : v.init() != null ? typeOfExpr(v.init(), ctx) : Ir.Type.ANY;
             if (v.init() != null) lowerExpr(v.init(), ctx);
             else ctx.emit(new Ir.LoadLiteral(t, defaultFor(t)));
@@ -118,10 +234,21 @@ public final class IrBuilder {
         } else if (s instanceof Ast.IfStmt i) {
             lowerIf(i.cond(), i.thenBlock(), i.elseBlock(), ctx);
         } else if (s instanceof Ast.ExprStmt e) {
-            lowerExpr(e.expr(), ctx);
-            if (!typeOfExpr(e.expr(), ctx).isVoid()) ctx.emit(new Ir.Pop());
+            AssertCall asrt = assertCall(e.expr());
+            if (asrt != null) {
+                lowerExpr(asrt.cond(), ctx);
+                ctx.emit(new Ir.Assert(asrt.message()));
+            } else {
+                lowerExpr(e.expr(), ctx);
+                Ir.Type et = typeOfExpr(e.expr(), ctx);
+                if (!et.isVoid()) ctx.emit(new Ir.Pop(et));
+            }
         } else if (s instanceof Ast.ThrowStmt t) {
+            Ir.Type vt = typeOfExpr(t.value(), ctx);
             lowerExpr(t.value(), ctx);
+            if (!Ir.Type.STRING.equals(vt) && !Ir.Type.ANY.equals(vt)) {
+                ctx.emit(new Ir.ToString(vt));
+            }
             ctx.emit(new Ir.Throw());
         } else if (s instanceof Ast.TryStmt t) {
             lowerTry(t, ctx);
@@ -129,7 +256,7 @@ public final class IrBuilder {
             lowerFor(f, ctx);
         } else if (s instanceof Ast.SpawnStmt sp) {
             lowerExpr(sp.value(), ctx);
-            ctx.emit(new Ir.Pop());
+            ctx.emit(new Ir.Pop(typeOfExpr(sp.value(), ctx)));
         } else if (s instanceof Ast.MatchStmt m) {
             lowerMatch(m, ctx, null);
         } else {
@@ -144,6 +271,7 @@ public final class IrBuilder {
         int elseIdx = elseB != null ? ctx.reserveBlock() : endIdx;
 
         ctx.emit(new Ir.JumpIfFalse(elseIdx));
+        ctx.emit(new Ir.Jump(thenIdx));
 
         ctx.openBlock(thenIdx);
         lowerBlock(thenB, ctx);
@@ -196,14 +324,18 @@ public final class IrBuilder {
             lowerBlock(f.body(), ctx);
             if (ch.update() != null) {
                 lowerExpr(ch.update(), ctx);
-                if (!typeOfExpr(ch.update(), ctx).isVoid()) ctx.emit(new Ir.Pop());
+                Ir.Type ut = typeOfExpr(ch.update(), ctx);
+                if (!ut.isVoid()) ctx.emit(new Ir.Pop(ut));
             }
             ctx.emit(new Ir.Jump(loopIdx));
 
             ctx.openBlock(endIdx);
         } else if (head instanceof Ast.ForInHead in) {
             lowerExpr(in.iter(), ctx);
-            ctx.emit(new Ir.Pop());
+            ctx.emit(new Ir.Pop(Ir.Type.ANY));
+            int idx = ctx.declare(in.name(), Ir.Type.ANY);
+            ctx.emit(new Ir.LoadLiteral(Ir.Type.ANY, null));
+            ctx.emit(new Ir.StoreLocal(idx, Ir.Type.ANY));
             lowerBlock(f.body(), ctx);
         } else if (head instanceof Ast.ForCondHead ch) {
             int loopIdx = ctx.reserveBlock();
@@ -225,60 +357,89 @@ public final class IrBuilder {
     }
 
     private void lowerMatch(Ast.MatchStmt m, MethodCtx ctx, Integer resultLocal) {
-        String subjectLocal = null;
-        if (m.subject() instanceof Ast.IdentExpr id && ctx.tryIndex(id.name()) != null) {
-            subjectLocal = id.name();
-        } else {
-            lowerExpr(m.subject(), ctx);
+        // sujeito avaliado UMA vez num temp; testes em blocos dedicados
+        // (o layout do IR não garante fall-through físico — D-HYD-027)
+        Ir.Type subjType = typeOfExpr(m.subject(), ctx);
+        int subjLocal = ctx.declareTemp(subjType);
+        lowerExpr(m.subject(), ctx);
+        ctx.emit(new Ir.StoreLocal(subjLocal, subjType));
+
+        // default do resultado: todo caminho que chega ao fim do match tem um
+        // valor bem formado para o verificador (enum exaustivo sem default).
+        if (resultLocal != null) {
+            Ir.Type rt = ctx.localType(resultLocal);
+            ctx.emit(new Ir.LoadLiteral(rt, defaultFor(rt)));
+            ctx.emit(new Ir.StoreLocal(resultLocal, rt));
         }
 
-        int endIdx = ctx.reserveBlock();
         int n = m.cases().size();
+        int endIdx = ctx.reserveBlock();
+        int[] testIdx = new int[n];
         int[] armIdx = new int[n];
-        int[] nextIdx = new int[n];
-        for (int i = 0; i < n; i++) armIdx[i] = ctx.reserveBlock();
-
-        int defaultBlock = endIdx;
         for (int i = 0; i < n; i++) {
-            if (isDefaultArm(m.cases().get(i))) defaultBlock = armIdx[i];
+            testIdx[i] = ctx.reserveBlock();
+            armIdx[i] = ctx.reserveBlock();
         }
+
+        ctx.emit(new Ir.Jump(testIdx[0]));
+
         for (int i = 0; i < n; i++) {
-            nextIdx[i] = (i + 1 < n) ? armIdx[i + 1] : defaultBlock;
+            Ast.CaseArm arm = m.cases().get(i);
+            ctx.openBlock(testIdx[i]);
+            if (isDefaultArm(arm)) {
+                ctx.emit(new Ir.Jump(armIdx[i]));
+            } else {
+                lowerCaseTest(arm, subjLocal, subjType, ctx);
+                int next = (i + 1 < n) ? testIdx[i + 1] : endIdx;
+                ctx.emit(new Ir.JumpIfFalse(next));
+                ctx.emit(new Ir.Jump(armIdx[i]));
+            }
         }
 
         for (int i = 0; i < n; i++) {
             Ast.CaseArm arm = m.cases().get(i);
-            if (isDefaultArm(arm)) continue;
-
-            if (subjectLocal != null) {
-                ctx.emit(new Ir.LoadLocal(ctx.indexOf(subjectLocal), typeOf(subjectLocal)));
-            } else if (i > 0) {
-                lowerExpr(m.subject(), ctx);
-            }
-            lowerCaseTest(arm, ctx);
-            ctx.emit(new Ir.JumpIfFalse(nextIdx[i]));
             ctx.openBlock(armIdx[i]);
-            emitArmBody(arm, resultLocal, ctx);
-            ctx.emit(new Ir.Jump(endIdx));
-        }
-
-        if (defaultBlock != endIdx) {
-            ctx.openBlock(defaultBlock);
-            for (Ast.CaseArm arm : m.cases()) {
-                if (isDefaultArm(arm)) emitArmBody(arm, resultLocal, ctx);
+            bind(arm, subjLocal, subjType, ctx);
+            if (arm.guard() != null) {
+                lowerExpr(arm.guard(), ctx);
+                int next = (i + 1 < n) ? testIdx[i + 1] : endIdx;
+                ctx.emit(new Ir.JumpIfFalse(next));
             }
+            emitArmBody(arm, resultLocal, ctx);
             ctx.emit(new Ir.Jump(endIdx));
         }
 
         ctx.openBlock(endIdx);
     }
 
+    /** Liga o(s) nome(s) do padrão ao sujeito; destructuring lê campos. */
+    private void bind(Ast.CaseArm arm, int subjLocal, Ir.Type subjType, MethodCtx ctx) {
+        if (isDefaultArm(arm) || arm.patternName() == null || arm.patternName().isEmpty()) return;
+        String[] names = arm.patternName().split(" ");
+        if (names.length == 1) {
+            int idx = ctx.declare(names[0], subjType);
+            ctx.emit(new Ir.LoadLocal(subjLocal, subjType));
+            ctx.emit(new Ir.StoreLocal(idx, subjType));
+            return;
+        }
+        // destructuring: cada nome vem do campo homônimo (v1: LoadField)
+        for (String name : names) {
+            if (name.isEmpty()) continue;
+            Ir.Type ft = typeOf.getOrDefault(subjType.name() + "." + name, Ir.Type.ANY);
+            ctx.emit(new Ir.LoadField(subjType.name(), name, ft));
+            int idx = ctx.declare(name, ft);
+            ctx.emit(new Ir.StoreLocal(idx, ft));
+        }
+    }
+
     private void emitArmBody(Ast.CaseArm arm, Integer resultLocal, MethodCtx ctx) {
-        if (arm.result() != null) {
-            lowerExpr(arm.result(), ctx);
-            if (resultLocal != null) {
-                ctx.emit(new Ir.StoreLocal(resultLocal, Ir.Type.ANY));
-            }
+        if (arm.result() == null) return;
+        lowerExpr(arm.result(), ctx);
+        if (resultLocal != null) {
+            ctx.emit(new Ir.StoreLocal(resultLocal, ctx.localType(resultLocal)));
+        } else {
+            Ir.Type rt = typeOfExpr(arm.result(), ctx);
+            if (!rt.isVoid()) ctx.emit(new Ir.Pop(rt));
         }
     }
 
@@ -288,19 +449,55 @@ public final class IrBuilder {
                 || "default".equals(arm.patternType());
     }
 
-    private void lowerCaseTest(Ast.CaseArm arm, MethodCtx ctx) {
+    /** Cada teste carrega o sujeito e deixa exatamente um Bool na pilha. */
+    private void lowerCaseTest(Ast.CaseArm arm, int subjLocal, Ir.Type subjType, MethodCtx ctx) {
         String pt = arm.patternType();
-        if (pt == null || pt.isEmpty()) {
+        if (pt == null || pt.isEmpty() || "default".equals(pt)) {
             ctx.emit(new Ir.LoadLiteral(Ir.Type.BOOL, true));
             return;
         }
+        ctx.emit(new Ir.LoadLocal(subjLocal, subjType));
         if (pt.contains(".")) {
+            // enum: comparar a string "Tipo.Caso"
             int dot = pt.indexOf('.');
             ctx.emit(new Ir.LoadEnum(pt.substring(0, dot), pt.substring(dot + 1)));
-            ctx.emit(new Ir.Binary("==", Ir.Type.ANY));
-        } else {
-            ctx.emit(new Ir.LoadLiteral(Ir.Type.BOOL, true));
+            ctx.emit(new Ir.Binary("==", Ir.Type.STRING));
+            return;
         }
+        if (pt.startsWith("\"")) {
+            ctx.emit(new Ir.LoadLiteral(Ir.Type.STRING, pt.substring(1, pt.length() - 1)));
+            ctx.emit(new Ir.Binary("==", Ir.Type.STRING));
+            return;
+        }
+        if ("true".equals(pt) || "false".equals(pt)) {
+            ctx.emit(new Ir.LoadLiteral(Ir.Type.BOOL, Boolean.parseBoolean(pt)));
+            ctx.emit(new Ir.Binary("==", Ir.Type.BOOL));
+            return;
+        }
+        if (pt.matches("-?\\d+")) {
+            ctx.emit(new Ir.LoadLiteral(Ir.Type.INT, Long.parseLong(pt)));
+            ctx.emit(new Ir.Binary("==", Ir.Type.INT));
+            return;
+        }
+        if ("null".equals(pt)) {
+            ctx.emit(new Ir.LoadLiteral(Ir.Type.ANY, null));
+            ctx.emit(new Ir.Binary("==", Ir.Type.ANY));
+            return;
+        }
+        // teste de tipo: `case String s` — null não é String (igual a `!= null`)
+        if (Ir.Type.STRING.equals(subjType) || Ir.Type.ANY.equals(subjType)) {
+            ctx.emit(new Ir.LoadLiteral(Ir.Type.ANY, null));
+            ctx.emit(new Ir.Binary("!=", Ir.Type.ANY));
+            return;
+        }
+        if (pt.equals(subjType.name())) {
+            // mesmo tipo estático: sempre casa
+            ctx.emit(new Ir.Pop(subjType));
+            ctx.emit(new Ir.LoadLiteral(Ir.Type.BOOL, true));
+            return;
+        }
+        throw new IllegalStateException("IR: case de tipo não suportado na v1: " + pt
+                + " (sujeito " + subjType.name() + ")");
     }
 
     private void lowerExpr(Ast.Expr e, MethodCtx ctx) {
@@ -331,13 +528,21 @@ public final class IrBuilder {
                 }
             }
         } else if (e instanceof Ast.BinaryExpr b) {
-            lowerExpr(b.left(), ctx);
-            lowerExpr(b.right(), ctx);
             Ir.Type lt = typeOfExpr(b.left(), ctx);
             Ir.Type rt = typeOfExpr(b.right(), ctx);
-            // Binary.operandType = tipo dos operandos (não o resultado)
-            Ir.Type operand = operandType(b.op(), lt, rt);
-            ctx.emit(new Ir.Binary(b.op(), operand));
+            if ("+".equals(b.op()) && (Ir.Type.STRING.equals(lt) || Ir.Type.STRING.equals(rt))) {
+                // concat: qualquer operando vira String (uma forma só — D-HYD-013)
+                lowerExpr(b.left(), ctx);
+                if (!Ir.Type.STRING.equals(lt)) ctx.emit(new Ir.ToString(lt));
+                lowerExpr(b.right(), ctx);
+                if (!Ir.Type.STRING.equals(rt)) ctx.emit(new Ir.ToString(rt));
+                ctx.emit(new Ir.Binary("+", Ir.Type.STRING));
+            } else {
+                lowerExpr(b.left(), ctx);
+                lowerExpr(b.right(), ctx);
+                // Binary.operandType = tipo dos operandos (não o resultado)
+                ctx.emit(new Ir.Binary(b.op(), operandType(b.op(), lt, rt)));
+            }
         } else if (e instanceof Ast.UnaryExpr u) {
             lowerExpr(u.operand(), ctx);
             ctx.emit(new Ir.Unary(u.op(), typeOfExpr(u.operand(), ctx)));
@@ -361,15 +566,34 @@ public final class IrBuilder {
             lowerExprInto(ie.cond(), ie.thenExpr(), ie.elseExpr(), temp, ctx);
             ctx.emit(new Ir.LoadLocal(temp, typeOfExpr(ie.thenExpr(), ctx)));
         } else if (e instanceof Ast.MatchExpr me) {
-            int temp = ctx.declareTemp(Ir.Type.ANY);
+            Ir.Type t = matchType(me, ctx);
+            int temp = ctx.declareTemp(t);
             lowerMatch(me.stmt(), ctx, temp);
-            ctx.emit(new Ir.LoadLocal(temp, Ir.Type.ANY));
+            ctx.emit(new Ir.LoadLocal(temp, t));
         } else if (e instanceof Ast.LambdaExpr) {
             throw new IllegalStateException("IR: lambda na v2 (F3-02)");
         } else {
             throw new IllegalStateException("IR: expr não suportada: " + e.getClass().getSimpleName());
         }
     }
+
+    /** Extrai um assert(cond, "msg") top-level de uma expressão de statement. */
+    private AssertCall assertCall(Ast.Expr e) {
+        if (e instanceof Ast.CallExpr c && c.callee() instanceof Ast.IdentExpr id && "assert".equals(id.name())) {
+            if (c.args().size() == 1) {
+                return new AssertCall(c.args().get(0), "assertion failed");
+            }
+            if (c.args().size() == 2 && c.args().get(1) instanceof Ast.StringLit m) {
+                return new AssertCall(c.args().get(0), m.value());
+            }
+            throw new IllegalStateException(
+                    "IR: assert espera (cond) ou (cond, \"mensagem\") — achou " + c.args().size() + " argumentos");
+        }
+        return null;
+    }
+
+    /** assert(cond, msg) já validado — built-in de teste (não vira Call). */
+    private record AssertCall(Ast.Expr cond, String message) {}
 
     private void lowerExprInto(Ast.Expr cond, Ast.Expr thenE, Ast.Expr elseE, int destLocal, MethodCtx ctx) {
         lowerExpr(cond, ctx);
@@ -493,15 +717,23 @@ public final class IrBuilder {
         if (e instanceof Ast.FieldExpr fe) {
             if (fe.receiver() instanceof Ast.IdentExpr re && typeOf.containsKey(re.name())
                     && ctx.tryIndex(re.name()) == null) {
-                return new Ir.Type(re.name());
+                return typeOf.get(re.name());
             }
             Ir.Type recv = typeOfExpr(fe.receiver(), ctx);
             return typeOf.getOrDefault(recv.name() + "." + fe.name(), Ir.Type.ANY);
         }
         if (e instanceof Ast.AssignExpr a) return Ir.Type.VOID; // store não deixa valor
         if (e instanceof Ast.IfExpr ie) return typeOfExpr(ie.thenExpr(), ctx);
-        if (e instanceof Ast.MatchExpr) return Ir.Type.ANY;
+        if (e instanceof Ast.MatchExpr me) return matchType(me, ctx);
         if (e instanceof Ast.LambdaExpr) return new Ir.Type("Function");
+        return Ir.Type.ANY;
+    }
+
+    /** Tipo do match = tipo do primeiro braço; chamado antes do lowering. */
+    private Ir.Type matchType(Ast.MatchExpr me, MethodCtx ctx) {
+        for (Ast.CaseArm arm : me.stmt().cases()) {
+            if (arm.result() != null) return typeOfExpr(arm.result(), ctx);
+        }
         return Ir.Type.ANY;
     }
 
@@ -524,6 +756,9 @@ public final class IrBuilder {
     /** Tipo dos operandos para a op (para o backend JVM emitir os opcodes certos). */
     private static Ir.Type operandType(String op, Ir.Type l, Ir.Type r) {
         if ("&&".equals(op) || "||".equals(op)) return Ir.Type.BOOL;
+        // == / != com null (ANY) compara referência, não conteúdo
+        if (("==".equals(op) || "!=".equals(op))
+                && (Ir.Type.ANY.equals(l) || Ir.Type.ANY.equals(r))) return Ir.Type.ANY;
         if (Ir.Type.STRING.equals(l) || Ir.Type.STRING.equals(r)) return Ir.Type.STRING;
         if (Ir.Type.FLOAT.equals(l) || Ir.Type.FLOAT.equals(r)) return Ir.Type.FLOAT;
         if (Ir.Type.BOOL.equals(l) && Ir.Type.BOOL.equals(r)) return Ir.Type.BOOL;
@@ -541,8 +776,25 @@ public final class IrBuilder {
         };
     }
 
+    /** Tipo de parâmetro/retorno com enums já rebaixados para String. */
+    private Ir.Type irTypeDecl(Ast.TypeRef t) {
+        if (t == null) return Ir.Type.ANY;
+        if (enumNames.contains(t.name())) return Ir.Type.STRING;
+        return irType(t);
+    }
+
     private static Ir.Type retType(Ast.TypeRef t) {
         return t == null ? Ir.Type.VOID : irType(t);
+    }
+
+    private Ir.Type retTypeDecl(Ast.TypeRef t) {
+        return t == null ? Ir.Type.VOID : irTypeDecl(t);
+    }
+
+    private List<Ir.Type> paramTypesDecl(List<Ast.Param> params) {
+        List<Ir.Type> out = new ArrayList<>();
+        for (Ast.Param p : params) out.add(irTypeDecl(p.type()));
+        return out;
     }
 
     private static List<Ir.Type> paramTypes(List<Ast.Param> params) {
@@ -606,6 +858,14 @@ public final class IrBuilder {
 
         Ir.Type tryType(String name) {
             return typeByName.get(name);
+        }
+
+        /** Tipo declarado de um local por índice (para stores tipados). */
+        Ir.Type localType(int index) {
+            for (Ir.Local l : locals) {
+                if (l.index() == index) return l.type();
+            }
+            return Ir.Type.ANY;
         }
 
         @SuppressWarnings("unchecked")

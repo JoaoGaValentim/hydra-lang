@@ -117,6 +117,90 @@ class JsBackendE2ETest {
     }
 
     @Test
+    @EnabledIf("nodeAvailable")
+    void assertThrowCatchParityInNode() throws Exception {
+        String outText = runJs("""
+                main() {
+                    try {
+                        assert(1 == 2, "quebrou")
+                    } catch (e) {
+                        println("erro: " + e)
+                    }
+                    try {
+                        throw "detalhe"
+                    } catch (e) {
+                        println("2:" + e)
+                    }
+                    println("fim")
+                }
+                """);
+        assertEquals("erro: quebrou%n2:detalhe%nfim%n".formatted(), outText);
+    }
+
+    @Test
+    @EnabledIf("nodeAvailable")
+    void boolAndFloatPrintLikeJvmInNode() throws Exception {
+        String outText = runJs("""
+                main() {
+                    println(true)
+                    println(false)
+                    println(1.0)
+                    println("n=" + 42)
+                }
+                """);
+        assertEquals("true%nfalse%n1.0%nn=42%n".formatted(), outText);
+    }
+
+    @Test
+    @EnabledIf("nodeAvailable")
+    void matchAndEnumParityInNode() throws Exception {
+        String outText = runJs("""
+                enum Color {
+                    Red
+                    Green
+                    Blue
+                }
+
+                nome(c: Color): String {
+                    match (c) {
+                        case Color.Red -> "red"
+                        case Color.Green -> "green"
+                        default -> "blue"
+                    }
+                }
+
+                classificar(n: Int): String {
+                    match (n) {
+                        case Int i if i < 0 -> "negativo"
+                        case Int i if i == 0 -> "zero"
+                        case Int i if i < 10 -> "pequeno"
+                        default -> "grande"
+                    }
+                }
+
+                main() {
+                    println(nome(Color.Red))
+                    println(classificar(-1))
+                    println(classificar(50))
+                }
+                """);
+        assertEquals("red%nnegativo%ngrande%n".formatted(), outText);
+    }
+
+    @Test
+    @EnabledIf("nodeAvailable")
+    void integerDivisionMatchesJvmInNode() throws Exception {
+        String outText = runJs("""
+                main() {
+                    println(10 / 3)
+                    println(10 % 3)
+                    println(10.0 / 4.0)
+                }
+                """);
+        assertEquals("3%n1%n2.5%n".formatted(), outText);
+    }
+
+    @Test
     void emitsJsFileWithoutNode() throws Exception {
         // não requer Node: só prova a emissão
         Compiler.compileToJs("""

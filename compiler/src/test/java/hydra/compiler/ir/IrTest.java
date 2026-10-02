@@ -173,7 +173,8 @@ class IrTest {
         String shape = Ir.shape(m);
         assertTrue(shape.contains("enum=Red,Green,Blue"), shape);
         assertTrue(shape.contains("loadEnum(Color.Red)"), shape);
-        assertTrue(shape.contains("call(nome; Color; ret=String)"), shape);
+        // enums são String no runtime (D-HYD-028)
+        assertTrue(shape.contains("call(nome; String; ret=String)"), shape);
     }
 
     @Test
@@ -227,6 +228,60 @@ class IrTest {
         assertTrue(shape.contains("jumpIfFalse("), shape);
         assertTrue(shape.contains("binary(<; Int)"), shape);
         assertTrue(shape.contains("binary(+; Int)"), shape);
+    }
+
+    @Test
+    void assertLowersToAssertOp() {
+        Ir.Module m = ir("""
+                main() {
+                    assert(1 + 1 == 2, "soma")
+                }
+                """);
+        String shape = Ir.shape(m);
+        assertTrue(shape.contains("binary(==; Int)"), shape);
+        assertTrue(shape.contains("assert(soma)"), shape);
+        assertFalse(shape.contains("call(assert"), shape);
+    }
+
+    @Test
+    void assertWithoutMessageUsesDefault() {
+        Ir.Module m = ir("""
+                main() {
+                    assert(true)
+                }
+                """);
+        assertTrue(Ir.shape(m).contains("assert(assertion failed)"), Ir.shape(m));
+    }
+
+    @Test
+    void assertArityIsHonestError() {
+        assertThrows(IllegalStateException.class, () -> ir("""
+                main() {
+                    assert(1 == 1, "a", "b")
+                }
+                """));
+    }
+
+    @Test
+    void stringConcatWithAnyOperandEmitsToString() {
+        Ir.Module m = ir("""
+                main() {
+                    println("n=" + 42)
+                }
+                """);
+        String shape = Ir.shape(m);
+        assertTrue(shape.contains("toString(Int)"), shape);
+        assertTrue(shape.contains("binary(+; String)"), shape);
+    }
+
+    @Test
+    void throwNonStringEmitsToString() {
+        Ir.Module m = ir("""
+                main() {
+                    throw 42
+                }
+                """);
+        assertTrue(Ir.shape(m).contains("toString(Int)"), Ir.shape(m));
     }
 
     @Test
