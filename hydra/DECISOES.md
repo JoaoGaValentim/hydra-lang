@@ -91,9 +91,37 @@ Formato curto:
 
 ### D-HYD-014 — Acesso a membro sem `this`
 - Contexto: orçamento de 20 keywords; `this` consome 1 palavra e exemplos Kof/Hydra não o usam.
-- Decisão: sem `this`. Campos e métros referenciam membros pelo nome; `super` permanece para `super.m()`.
+- Decisão: sem `this`. Campos e métodos referenciam membros pelo nome; `super` permanece para `super.m()`.
 - Alternativas descartadas: manter `this` e remover `extends` (herança é conceito real do Kof); usar `@` ou prefixo.
 - Consequências: ambiguidade se um parâmetro colidir com campo — resolver no semântico (escopo mais próximo), com diagnóstico claro, não com palavra nova.
+- Data: 2026-10-01
+
+### D-HYD-015 — `test`/`application` permanecem contextuais (não keywords)
+- Contexto: orçamento fechado em 20 com `extends`; promover `test`/`application` estoura o orçamento.
+- Decisão: **contextuais** (como no Kof) na v1. O parser reconhece `test "…"` e `application {` no início de declaração de topo; fora disso são identificadores comuns.
+- Alternativas descartadas: promover a keywords e remover `extends`/`super`; deixar de fora do core e usar só `main`.
+- Consequências: lookahead de topo; se o orçamento abrir, reavaliar.
+- Data: 2026-10-01
+
+### D-HYD-016 — Sem wildcard de import na v1
+- Contexto: Kof aceita `import a.b.*`; wildcard soma forma e esconde nomes.
+- Decisão: v1 só `import a.b.C` (qualname completo). Sem `*`.
+- Alternativas descartadas: manter wildcard; import de pacote com renome.
+- Consequências: migração expande imports; `fmt` pode inserir imports explícitos.
+- Data: 2026-10-01
+
+### D-HYD-017 — `as` morto na v1
+- Contexto: `match` com binding cobre downcast (`case String s -> …`).
+- Decisão: sem operador `as`. Se precisar, é problema de design do padrão, não de palavra nova.
+- Alternativas descartadas: manter `as` no orçamento; criar `cast`.
+- Consequências: `-1` menos keyword; exemplos de cast usam match.
+- Data: 2026-10-01
+
+### D-HYD-018 — `finally` fora do core na v1
+- Contexto: `try/catch` cobre o caso comum; `finally` é raro e estoura o orçamento de 20.
+- Decisão: v1 sem `finally`. Recursos precisam de padrão explícito (ex.: `try` + `catch` + código no mesmo bloco). Se `finally` voltar, entra e sai outra palavra.
+- Alternativas descartadas: manter `finally` e remover `extends` (herança é conceito; finally é sintaxe de recurso).
+- Consequências: stdlib de recursos (arquivos, conexões) usa padrão documentado sem `finally`.
 - Data: 2026-10-01
 
 ### D-HYD-012 — Gramática EBNF rascunho (Fase 1)

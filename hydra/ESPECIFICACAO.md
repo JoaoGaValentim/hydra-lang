@@ -1,7 +1,7 @@
 # ESPECIFICACAO — Hydra
 
-**Versão:** rascunho 0.1 (Fase 1 — em construção)
-**Status:** NÃO congelado. Base: `AUDITORIA-SINTAXE.md` + `DECISOES.md`.
+**Versão:** 0.1 congelada (Fase 1 concluída; backend de linguagem em Fase 2)
+**Status:** rascunho **congelado** após F1-04 + D-HYD-015..018. Reabrir só com registro em `DECISOES.md`.
 **Orçamento (meta):** EBNF ≤120 linhas · palavras reservadas ≤20 · uma forma por conceito.
 
 Extensão de fonte: **`.hy`** (D-HYD-004).
@@ -268,18 +268,26 @@ main() {
 
 ---
 
-## 8. Pendências desta especificação
+## 8. Pendências desta especificação — status Fase 1 (rascunho congelado)
 
-- [ ] Fechar se `test`/`application` entram como keywords (contextuais no rascunho; estouram 20). Exemplo `37-application.hy` é forma candidata.
-- [ ] Decidir wildcard de import sim/não (exemplo `25-imports.hy` usa qualname puro).
-- [ ] Decidir `as` definitivamente morto ou mantido (fora do conjunto de 20; `match` cobre downcast na v1).
-- [x] Orçamento de keywords: **20** (D-HYD-011 rev.; `this` → `extends`).
+Decisões fechadas (ver `DECISOES.md`):
+
+- [x] Orçamento de keywords: **20** (D-HYD-011 rev. + D-HYD-014: `extends` no lugar de `this`).
 - [x] EBNF não-vazia ≈ **71** linhas (meta ≤120).
-- [x] Exemplos: **40** `.hy` (relitura fez `36` sem alias de tipo; `extends` documentado).
-- [ ] Congelar Fase 1 após passar o checklist F1-04 e decidir os itens contextuais.
-- [ ] Mapear cada forma para o AST/IR do Kof (contrato Fase 2–3).
-- [ ] `finally`: fora do conjunto de 20; se precisar voltar, entra e sai outro.
+- [x] Exemplos: **40** `.hy`.
+- [x] `test`/`application`: **contextuais** (D-HYD-015), não keywords.
+- [x] Wildcard de import: **não** na v1 (D-HYD-016).
+- [x] `as`: **morto** na v1 (D-HYD-017); `match` cobre downcast.
+- [x] `finally`: **fora do core** na v1 (D-HYD-018).
+
+Fechados na revisão (não bloqueiam Fase 2):
+
+- [x] Alias de tipo fora da gramática v1 (exemplo 36 corrigido).
+- [x] Built-ins de stdlib documentados (`println`, `assert`, coleções).
+- [ ] Mapear cada forma para o AST/IR do Kof (contrato Fase 2–3) — **durante** o parser.
+
+**Status:** rascunho **congelado** para iniciar o frontend. Reabrir só com motivo registrado em `DECISOES.md`.
 
 ---
 
-*Documento vivo da Fase 1. Congelar só quando os portões de orçamento passarem.*
+*Documento vivo da Fase 1. Congelado após orçamento F1-04 + D-HYD-015..018.*

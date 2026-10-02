@@ -20,16 +20,16 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
-| F1-01 | fazendo | L | F0 | `ESPECIFICACAO.md` rascunho 0.1 (EBNF ~71 linhas, keywords 20, tipos, semântica). **Falta:** relitura crítica + congelar orçamento. |
-| F1-02 | fazendo | M | F1-01 | `DECISOES.md` D-HYD-001..013 registradas. Restam: wildcard import, `as`, `test`/`application` keywords, `finally`. |
-| F1-03 | fazendo | L | F1-01 | **40** exemplos `.hy` em `hydra/exemplos/`. Falta relitura crítica contra a EBNF (ex.: alias de tipo `type Inteiro = Int` pode não estar na gramática). |
-| F1-04 | feito | S | F1-03 | Checklist orçamento executado (STATE): keywords 20 ✓ · EBNF ~71 ✓ · formas 1/2/1 ✓ · 40 exemplos ✓. Fase 1 **ainda não congelada** — faltam decisões contextuais. |
+| F1-01 | feito | L | F0 | `ESPECIFICACAO.md` **congelada** (EBNF ~71 linhas, keywords 20, tipos, semântica). |
+| F1-02 | feito | M | F1-01 | `DECISOES.md` D-HYD-001..018 (contextuais, wildcard, `as`, `finally` fechados). |
+| F1-03 | feito | L | F1-01 | **40** exemplos `.hy`; relitura fez correções (22/23/36). |
+| F1-04 | feito | S | F1-03 | Checklist orçamento **aprovado** (STATE). Fase 1 congelada. |
 
 ## Fase 2 — Frontend
 
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
-| F2-01 | todo | L | F1 | Lexer Hydra (novo, ao lado do Kof). |
+| F2-01 | fazendo | L | F1 | Lexer Hydra (novo, em `compiler/`). |
 | F2-02 | todo | L | F2-01 | Parser Hydra + AST. |
 | F2-03 | todo | M | F2-02 | Testes de parse: válidos, inválidos, borda; mensagens com linha/coluna/sugestão. |
 | F2-04 | todo | M | F2-02 | Prova: exemplos da Fase 1 → AST equivalente à do Kof correspondente. |

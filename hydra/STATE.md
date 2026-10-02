@@ -1,7 +1,7 @@
 # STATE — Hydra
 
-**Última atualização:** 2026-10-01 (Fase 0 concluída na prática; Fase 1 em andamento)
-**Fase atual:** 1 — Especificação
+**Última atualização:** 2026-10-01 (Fase 1 congelada; Fase 2 iniciada)
+**Fase atual:** 2 — Frontend (lexer)
 **Operador:** MiMo 2.5 (engenheiro-chefe autônomo)
 
 ---
