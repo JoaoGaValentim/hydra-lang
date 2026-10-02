@@ -15,7 +15,8 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 - **Ciclo 7** | Fase 2 | Feito: **F2-04 fechado** — `ParityTest` 9/9 (hello, val-var, funcoes, erros, enum, type-membros, lambdas + parse both + functionShape); `hydra/PARITY.md`; dep test `kof-compiler:0.5.0-beta`; CI `hydra-compiler` instala `kof-parent` + módulos antes de `mvn test`; **42/42 verdes**; CI verde run `36957628100`. | Verificado: `mvn -B test` → 42/42; `gh run watch` → structure ✓ + upstream-compile ✓ + hydra-compiler ✓. | Decisão: normalizações de shape (call sem recv, ret void/?, catch só nome); type/enum sem full-shape. | Próximo: F2-03 bordas de erro; fechar Fase 2; Fase 3 IR.
 - **Ciclo 8** | Fase 2→3 | Feito: **F2-03 fechado** — `SyntaxError` com `code`/`suggestion`/contexto de linha; `hintExpect` + erros HYP001..013; lexer rejeita `;` com sugestão; `catch (String e)` rejeitado; `fun`/`class` rejeitados no topo; `DiagnosticsTest` 13/13; **55/55 verdes**; **Fase 2 fechada**. | Verificado: `mvn -B test` → BUILD SUCCESS 55/55; CI run `36958202456` verde. | Decisão: diagnóstico com código estável HYP0xx para tooling futuro. | Próximo: F3-01 IR a partir da AST Hydra.
 - **Ciclo 9** | Fase 3 | Feito: **F3-01 fechado** — IR `hydra.compiler.ir.{Ir,IrBuilder}` (shape Kof-like); `IrTest` 10/10; `hydra/IR.md`; **D-HYD-021**; **65/65 verdes**. | Verificado: `mvn -B test` → 65/65; CI run `36959453195` verde. | Decisão: IR com tipos canônicos string; lambda na v2; campo sem `this` → LoadField. | Próximo: F3-02 backend JVM mínimo.
-- **Ciclo 10** | Fase 3 | Feito: **F3-02 fechado** — `hydra.compiler.backend.JvmBackend` (ASM 9.7.1) + `Compiler` facade; E2E 7/7 executando bytecode real (hello, val/var, aritmética, if+throw+try/catch, string concat, for clássico, CAFEBABE); **72/72 verdes**. | Verificado: `mvn -B test` → BUILD SUCCESS 72/72. | Decisão: `Binary.operandType` = tipo dos operandos (não do resultado); try-catch table em ASM; println(Int) via scratch local. | Próximo: F3-03 Native/JS ou fechar Fase 3 com paridade (F3-04).
+- **Ciclo 10** | Fase 3 | Feito: **F3-02 fechado** — `JvmBackend` (ASM) + `Compiler`; E2E 7/7 bytecode real. | Verificado: `mvn -B test` → 72/72; CI `36960446128` verde. | Decisão: `Binary.operandType` = operandos; try-catch ASM; println(Int) via scratch. | Próximo: F3-03 JS/Native.
+- **Ciclo 11** | Fase 3 | Feito: **F3-03+F3-04 fechados** — `JsBackend` (switch(pc), sem goto); E2E Node (hello/arith/fun/for/string); `TargetParityTest` JVM≡JS; Native documentado **BLQ-02** (macOS); **78+6=84 testes** locais (78 no suite + parity). | Verificado: `mvn -B test` → BUILD SUCCESS **78/78** (suite) e parity roda com Node. | Decisão: JS com máquina de estados; try/catch JS na v2; Native só em Linux. | Próximo: Fase 4 (migração Kof→Hydra) ou alargar backend JVM (type/enum runtime).
 
 ### Métricas
 
@@ -31,7 +32,8 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 | Baseline testes (foco, macOS) | 808 / 155F / 8E / 26S |
 | Baseline Native (macOS) | inexecutável (as Apple ≠ GNU ELF) |
 | CI Hydra | **VERDE** — structure + upstream-compile + hydra-compiler |
-| Testes hydra-compiler | **72/72** (10 IR + 7 JVM E2E + 12 lexer + 21 parser + 9 parity + 13 diagnostics) |
+| Testes hydra-compiler | **84/84** (10 IR + 7 JVM E2E + 6 JS E2E + 6 parity alvos + 12 lexer + 21 parser + 9 parity AST + 13 diagnostics) |
 | Paridade AST | **9/9** shapes hello/val-var/funcoes/erros |
+| Paridade de alvos | **6/6** JVM≡JS (hello/arith/fun/for/string/jvm-only) |
 | Códigos de erro | **HYP000–HYP013** (F2-03) |
-| Commits | `4123122` · `e0b3dce` · `3dd5a68` · `7dcac62` · `b905c21` · `c831d37` · `973e3f6` · `f1766b2` · `6c4d58e` · `a1aae9a` · `1082bff` · `b835f35` · `ff95ad5` |
+| Commits | `4123122` · `e0b3dce` · `3dd5a68` · `7dcac62` · `b905c21` · `c831d37` · `973e3f6` · `f1766b2` · `6c4d58e` · `a1aae9a` · `1082bff` · `b835f35` · `ff95ad5` · `1653ccf` · `4a377de` |

@@ -159,6 +159,20 @@ Formato curto:
 - Consequências: strings = literal + `+`/`+=`; stdlib futura pode oferecer `format` sem mudar a gramática.
 - Data: 2026-10-01
 
+### D-HYD-022 — Backend JS com máquina de estados (switch pc)
+- Contexto: F3-03 precisa emitir JS a partir de `Ir.Module`; JS não tem `goto` e o IR é CFG arbitrário (blocks + Jump/JumpIfFalse).
+- Decisão: cada método JS vira `let pc = 0; while (true) { switch (pc) { … } }` — um `case` por basic block; `Jump` seta `pc` e `break`; `JumpIfFalse` condicional. Bool = `1`/`0` (mesmo domínio do JVM `int`).
+- Alternativas descartadas: labels `L1:;` + `break L1` (quebra com fall-through/cascata); reescrever CFG em `if` aninhado (perde o shape do IR); interpretar ops em JS (não é compile).
+- Consequências: um backend JS genérico sem refatorar o IR; paridade de alvo provável no subset coberto (`TargetParityTest`); try/catch JS e objetos ficam para a v2 do backend.
+- Data: 2026-10-02
+
+### D-HYD-023 — Native fora do subset desta estação (BLQ-02)
+- Contexto: host macOS aarch64; baseline do Kof já marca Native como inexecutável (Apple ≠ GNU ELF).
+- Decisão: **não** implementar alvo nativo no Hydra até haver Linux dedicado. Documentar como gap honesto em `IR.md`/`STATE.md`. JS é o alvo interpretado viável no host atual.
+- Alternativas descartadas: cross-compile forçado; prometer alvo sem testar; baixar toolchain não verificada.
+- Consequências: F3-03 fecha com JS + paridade; Fase de Native reabre quando o ambiente existir (não é bloqueio de roadmap, é bloqueio de host).
+- Data: 2026-10-02
+
 ---
 
 *Novas decisões entram aqui no ciclo em que forem tomadas (seção 8, passo 8).*

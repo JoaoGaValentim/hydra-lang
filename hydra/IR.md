@@ -57,8 +57,8 @@ type-decl, aridade, for clássico, imports. Shape canônico via `Ir.shape(module
 |---|---|
 | F3-01 IR + lowering v1 | **feito** |
 | F3-02 backend JVM mínimo | **feito** — E2E 7/7 (`JvmBackendE2ETest`) |
-| F3-03 Native/JS | todo |
-| F3-04 paridade de alvos | todo |
+| F3-03 backend JS | **feito** — E2E Node (`JsBackendE2ETest`); Native **BLQ-02** |
+| F3-04 paridade de alvos | **feito** — `TargetParityTest` JVM≡JS |
 
 ## Backend JVM (F3-02)
 
@@ -68,3 +68,19 @@ type-decl, aridade, for clássico, imports. Shape canônico via `Ir.shape(module
 - `+` de String → `String.concat`.
 - try/catch → `visitTryCatchBlock(Throwable)`.
 - `Binary.operandType` = tipo dos operandos (comparações em Int usam `LCMP`).
+
+## Backend JS (F3-03)
+
+- Mesmo IR; emite `main.js` com `'use strict'` + shim `println`/`print` (`console.log` / `process.stdout.write`).
+- CFG arbitrário via **máquina de estados** `let pc; while (true) { switch (pc) { … } }` (JS não tem goto).
+- `Jump` → `pc = N; break;`; `JumpIfFalse` → `if (!stack.pop()) { pc = N; break; }`.
+- Bool em JS é `1`/`0` (mesmo domínio do JVM `int`); comparações `===`/`!==`.
+- try/catch: **v2** — ops Try* são ignorados com nota (JVM cobre o caminho de erros no subset).
+- LoadField/StoreField/NewObject: erro honesto (mesmo limite do JVM v1).
+- Entry: `if (typeof require !== 'undefined' && require.main === module) { main(); }`.
+- `Compiler.compileToJs(source, outDir)` → `outDir/main.js`.
+
+## Native (BLQ-02)
+
+- **Não implementado** nesta estação: host macOS aarch64 ≠ ELF GNU; baseline do Kof já falha no mesmo motivo.
+- Não prometer alvo nativo até Linux dedicado. JS cobre o alvo interpretado.
