@@ -137,7 +137,9 @@ jobs:
 
       - name: Install Kof compiler (parity test dep)
         working-directory: kof_upstream
-        run: mvn -B -pl kof-compiler,kof-runtime install -DskipTests
+        run: |
+          mvn -B -N install -DskipTests
+          mvn -B -pl kof-compiler,kof-runtime install -DskipTests
 
       - name: Test hydra-compiler
         working-directory: compiler
