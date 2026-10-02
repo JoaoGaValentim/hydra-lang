@@ -18,6 +18,7 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 - **Ciclo 10** | Fase 3 | Feito: **F3-02 fechado** — `JvmBackend` (ASM) + `Compiler`; E2E 7/7 bytecode real. | Verificado: `mvn -B test` → 72/72; CI `36960446128` verde. | Decisão: `Binary.operandType` = operandos; try-catch ASM; println(Int) via scratch. | Próximo: F3-03 JS/Native.
 - **Ciclo 11** | Fase 3 | Feito: **F3-03+F3-04 fechados** — `JsBackend` (switch(pc), sem goto); E2E Node (hello/arith/fun/for/string); `TargetParityTest` JVM≡JS; Native documentado **BLQ-02** (macOS); **84/84**; commit `a528934`; CI `36961027928` verde. | Verificado: `mvn -B test` → BUILD SUCCESS **84/84**; `gh run watch` → structure ✓ + upstream-compile ✓ + hydra-compiler ✓. | Decisão: **D-HYD-022** máquina de estados JS; **D-HYD-023** Native só em Linux; try/catch JS na v2. | Próximo: Fase 4 (migração Kof→Hydra) ou backend JVM v2 (type/enum/lambda).
 - **Ciclo 12** | Fase 4 | Feito: **F4-01+F4-02 fechados** — `Migrator` (AST Kof→Hydra + gate parse + MIG0xx); `MigrateTest` 15/15; `MigrateCorpusTest` 5/5 sobre `training/examples` + golden; Kof em compile scope; **104/104**; commit `35f18f8`; CI `37017668287` verde. | Verificado: `mvn -B test` → BUILD SUCCESS **104/104**; `gh run watch` → structure ✓ + upstream-compile ✓ + hydra-compiler ✓. | Decisão: **D-HYD-024** AST-walk + gate + diagnósticos honestos; compat só em tooling. | Próximo: Fase 5 stdlib ou F6 ferramentas (`fmt`/`run`/CLI migrate).
+- **Ciclo 13** | Fase 6 | Feito: **F6-01 parcial fechado** — CLI `hydra check|run|migrate|version` (`Cli.java` + `bin/hydra`); `CliTest` 10/10; jar Main-Class; **114/104→114**. | Verificado: `mvn -B test` → BUILD SUCCESS **114/114**. | Decisão: **D-HYD-025** CLI só com o que o pipeline prova; fmt/new/test deferred (F6-01b). | Próximo: F6-01b (`fmt` reprint canônico) ou F5 stdlib.
 
 ### Métricas
 
@@ -33,7 +34,7 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 | Baseline testes (foco, macOS) | 808 / 155F / 8E / 26S |
 | Baseline Native (macOS) | inexecutável (as Apple ≠ GNU ELF) |
 | CI Hydra | **VERDE** — structure + upstream-compile + hydra-compiler |
-| Testes hydra-compiler | **104/104** (10 IR + 7 JVM + 6 JS + 6 parity alvos + 15 migrate + 5 corpus + 12 lexer + 21 parser + 9 parity AST + 13 diagnostics) |
+| Testes hydra-compiler | **114/114** (10 IR + 7 JVM + 6 JS + 6 parity alvos + 10 CLI + 15 migrate + 5 corpus + 12 lexer + 21 parser + 9 parity AST + 13 diagnostics) |
 | Paridade AST | **9/9** shapes hello/val-var/funcoes/erros |
 | Paridade de alvos | **6/6** JVM≡JS (hello/arith/fun/for/string/jvm-only) |
 | Migração Kof | **15+5** testes (unit + corpus training/golden) |

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# hydra — wrapper fino: usa o jar do compiler se existir, senão mvn.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+JAR="$ROOT/compiler/target/hydra-compiler-0.1.0-SNAPSHOT.jar"
+if [[ ! -f "$JAR" ]]; then
+  echo "jar não encontrado — rode: (cd compiler && mvn -B -DskipTests package)" >&2
+  exit 1
+fi
+# kof-compiler é dependência de compile do migrator
+KOF_JAR="${KOF_COMPILER_JAR:-$HOME/.m2/repository/dev/kof/kof-compiler/0.5.0-beta/kof-compiler-0.5.0-beta.jar}"
+ASM_JAR="${ASM_JAR:-$HOME/.m2/repository/org/ow2/asm/asm/9.7.1/asm-9.7.1.jar}"
+CP="$JAR"
+[[ -f "$KOF_JAR" ]] && CP="$CP:$KOF_JAR"
+[[ -f "$ASM_JAR" ]] && CP="$CP:$ASM_JAR"
+exec java -cp "$CP" hydra.compiler.cli.Cli "$@"

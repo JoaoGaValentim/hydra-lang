@@ -180,6 +180,13 @@ Formato curto:
 - Consequências: corpus Kof real coberto por `MigrateCorpusTest`; usuários veem diagnóstico do que NÃO migrou; gramática Hydra permanece intacta.
 - Data: 2026-10-02
 
+### D-HYD-025 — CLI cobre só o que o pipeline prova (F6-01)
+- Contexto: BACKLOG pedia fmt/check/test/run/new; o pipeline atual prova check, run (JVM/JS) e migrate.
+- Decisão: `hydra.compiler.cli.Cli` implementa **check · run · migrate · version · help**. `fmt`/`new`/`test` ficam para F6-01b (não saem como stub). Wrapper `bin/hydra` usa o jar + deps do local m2.
+- Alternativas descartadas: CLI com `fmt` que só trim (finge formatar); `test` sem runner; jar fat sem documentar classpath do Kof.
+- Consequências: usuário migra e roda de verdade; BACKLOG marca fmt/new/test como deferred honesto.
+- Data: 2026-10-02
+
 ---
 
 *Novas decisões entram aqui no ciclo em que forem tomadas (seção 8, passo 8).*
