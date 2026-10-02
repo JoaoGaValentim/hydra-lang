@@ -1,0 +1,107 @@
+# Hydra CI
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  structure:
+    name: Repository structure & memory
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 25 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Required files present
+        run: |
+          set -euo pipefail
+          required=(
+            LICENSE
+            NOTICE
+            README.md
+            .gitignore
+            hydra/STATE.md
+            hydra/BACKLOG.md
+            hydra/DECISOES.md
+            hydra/LOG.md
+            hydra/AUDITORIA-SINTAXE.md
+            .github/workflows/ci.yml
+          )
+          missing=0
+          for f in "${required[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "MISSING: $f"
+              missing=1
+            else
+              echo "ok: $f ($(wc -l < "$f") lines)"
+            fi
+          done
+          exit "$missing"
+
+      - name: Memory docs are non-trivial
+        run: |
+          set -euo pipefail
+          for f in hydra/STATE.md hydra/BACKLOG.md hydra/DECISOES.md hydra/LOG.md hydra/AUDITORIA-SINTAXE.md; do
+            lines=$(wc -l < "$f")
+            if [ "$lines" -lt 20 ]; then
+              echo "FAIL: $f has only $lines lines (expected >= 20)"
+              exit 1
+            fi
+          done
+          echo "memory docs ok"
+
+      - name: License and attribution
+        run: |
+          set -euo pipefail
+          grep -q "GNU GENERAL PUBLIC LICENSE" LICENSE
+          grep -q "KofLang/Kof4j" NOTICE
+          grep -qi "derived" NOTICE
+          echo "license ok"
+
+      - name: Syntax budget recorded
+        run: |
+          set -euo pipefail
+          grep -q "Orçamento\|orçamento\|budget\|keyword\|reservad" hydra/AUDITORIA-SINTAXE.md
+          grep -q "DECISOES\|Decisão\|Decisao" hydra/DECISOES.md
+          echo "budget/decisions docs ok"
+
+  upstream-compile:
+    name: Kof upstream still compiles
+    runs-on: ubuntu-latest
+    needs: structure
+    steps:
+      - name: Checkout Hydra
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 25 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Clone Kof upstream (read-only reference)
+        run: git clone --depth 1 https://github.com/KofLang/Kof4j.git kof_upstream
+
+      - name: Build Kof compiler modules (skip tests)
+        working-directory: kof_upstream
+        run: |
+          mvn -B -pl kof-compiler,kof-runtime,kof-script,kof-c-compiler install -DskipTests
