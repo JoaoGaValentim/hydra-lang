@@ -60,7 +60,8 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
-| F6-01 | feito | L | F3 | CLI `hydra check|run|migrate|version` (`Cli.java` + `bin/hydra`); `CliTest` 10/10. **fmt/new/test**: deferred (F6-01b). |
+| F6-01 | feito | L | F3 | CLI `hydra check\|run\|migrate\|version` (`Cli.java` + `bin/hydra`); `CliTest` 15/15. |
+| F6-01b | feito | M | F6-01 | `hydra fmt` reprint canônico da AST + preservação de `//` (D-HYD-026); `FormatterTest` 57/57. **new/test**: ainda deferred. |
 | F6-02 | todo | M | F6-01 | LSP + editor + REPL/script mode. |
 
 ## Fase 7 — Docs e corpus

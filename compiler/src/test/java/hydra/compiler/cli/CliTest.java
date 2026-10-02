@@ -154,4 +154,49 @@ class CliTest {
         assertEquals(0, r.code());
         assertTrue(r.out().contains("hydra"), r.out());
     }
+
+    @Test
+    void fmtRewritesInPlace() throws Exception {
+        Path f = write("messy.hy", "main() {\nprintln(\"x\")\n}\n");
+        Out r = run("fmt", f.toString());
+        assertEquals(0, r.code(), r.err());
+        String text = Files.readString(f, StandardCharsets.UTF_8);
+        assertEquals("main() {\n    println(\"x\")\n}\n", text);
+        assertTrue(r.out().contains("reformat"), r.out());
+        Out again = run("fmt", f.toString());
+        assertEquals(0, again.code());
+        assertTrue(again.out().contains("unchanged"), again.out());
+    }
+
+    @Test
+    void fmtKeepsComments() throws Exception {
+        Path f = write("com.hy", "// top\nmain() {\nprintln(\"x\") // t\n}\n");
+        Out r = run("fmt", f.toString());
+        assertEquals(0, r.code(), r.err());
+        String text = Files.readString(f, StandardCharsets.UTF_8);
+        assertTrue(text.contains("// top"), text);
+        assertTrue(text.contains("// t"), text);
+    }
+
+    @Test
+    void fmtParseErrorExitsOne() throws Exception {
+        Path f = write("bad.hy", "main( {");
+        Out r = run("fmt", f.toString());
+        assertEquals(1, r.code());
+        assertTrue(r.err().contains("HYP") || r.err().contains("hy"), r.err());
+    }
+
+    @Test
+    void fmtMissingFile() {
+        Out r = run("fmt", dir.resolve("missing.hy").toString());
+        assertEquals(1, r.code());
+        assertTrue(r.err().contains("não encontrado"), r.err());
+    }
+
+    @Test
+    void helpMentionsFmt() {
+        Out r = run("help");
+        assertEquals(0, r.code());
+        assertTrue(r.out().contains("hydra fmt"), r.out());
+    }
 }

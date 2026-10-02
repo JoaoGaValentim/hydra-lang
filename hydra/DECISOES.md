@@ -187,6 +187,13 @@ Formato curto:
 - Consequências: usuário migra e roda de verdade; BACKLOG marca fmt/new/test como deferred honesto.
 - Data: 2026-10-02
 
+### D-HYD-026 — fmt é reprint canônico da AST (F6-01b)
+- Contexto: fmt precisa provar idempotência (`fmt(fmt(x))==fmt(x)`) sem inventar sintaxe nova; parser já produz `Ast.Unit`; comentários `//` não entram na AST.
+- Decisão: `hydra.compiler.fmt.Formatter` reimprime a AST com indent 4, preservando `//` por linha original (scan fora de strings + reanexação antes/trailing). Forma canônica: blank line entre decls de topo; `for x in xs` sem `val` (val implícito); `else if` canônico; `= expr` quando o parser sugar `ReturnStmt` na mesma linha da decl; `test "…"`/`application` reconstruídos a partir de `FunDecl`. `hydra fmt <arquivo> [saida]` grava e reporta `reformat`/`unchanged`. Exemplos aspiracionais fora do subset (ex.: `20-mapas.hy` com `to`) são pulados com Assumptions — fmt não os conserta.
+- Alternativas descartadas: fmt só de whitespace (perde forma canônica); fmt que descarta comentários; parser de comments no lexer mudando o contrato de tokens.
+- Consequências: `FormatterTest` 57 testes (unit + corpus 39 exemplos parseáveis); CLI fmt em `CliTest`; `new`/`test` continuam deferred.
+- Data: 2026-10-02
+
 ---
 
 *Novas decisões entram aqui no ciclo em que forem tomadas (seção 8, passo 8).*

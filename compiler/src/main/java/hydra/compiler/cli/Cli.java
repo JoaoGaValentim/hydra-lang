@@ -18,8 +18,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * F6-01 — CLI Hydra.
- * Subcomandos: check · run · migrate · help.
- * fmt/new/test ficam para o próximo slice (BACKLOG); aqui só o que o pipeline
+ * Subcomandos: check · run · migrate · fmt · help.
+ * new/test ficam para o próximo slice (BACKLOG); aqui só o que o pipeline
  * atual cobre de verdade.
  */
 public final class Cli {
@@ -79,12 +79,57 @@ public final class Cli {
                 Path outHy = args.length >= 3 ? Path.of(args[2]) : null;
                 return migrate(in, outHy, out, err);
             }
+            case "fmt" -> {
+                if (args.length < 2) {
+                    err.println("uso: hydra fmt <arquivo.hy> [saida.hy]");
+                    return 2;
+                }
+                Path in = Path.of(args[1]);
+                Path outHy = args.length >= 3 ? Path.of(args[2]) : null;
+                return fmt(in, outHy, out, err);
+            }
             default -> {
                 err.println("comando desconhecido: " + cmd);
                 usage(err);
                 return 2;
             }
         }
+    }
+
+    static int fmt(Path in, Path outHy, PrintStream out, PrintStream err) {
+        if (!Files.isRegularFile(in)) {
+            err.println("arquivo não encontrado: " + in);
+            return 1;
+        }
+        String src;
+        try {
+            src = Files.readString(in, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            err.println("falha ao ler " + in + ": " + e.getMessage());
+            return 1;
+        }
+        String formatted;
+        try {
+            formatted = hydra.compiler.fmt.Formatter.format(src);
+        } catch (SyntaxError e) {
+            err.println(in + ":" + e.line() + ":" + e.col() + " [" + e.code() + "] " + e.getMessage());
+            return 1;
+        } catch (RuntimeException e) {
+            err.println(in + ": " + e.getMessage());
+            return 1;
+        }
+        Path target = outHy != null ? outHy : in;
+        boolean changed;
+        try {
+            String prev = Files.isRegularFile(target) ? Files.readString(target, StandardCharsets.UTF_8) : null;
+            changed = prev == null || !prev.equals(formatted);
+            Files.writeString(target, formatted, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            err.println("falha ao escrever " + target + ": " + e.getMessage());
+            return 1;
+        }
+        out.println((changed ? "reformat " : "unchanged ") + target);
+        return 0;
     }
 
     static int check(Path file, PrintStream out, PrintStream err) {
@@ -231,8 +276,9 @@ public final class Cli {
         s.println("  hydra check  <arquivo.hy>           parseia e reporta erros");
         s.println("  hydra run    <arquivo.hy> [--js]    compila e executa (JVM; --js usa node)");
         s.println("  hydra migrate <arquivo.kf> [out.hy] Kof → Hydra");
+        s.println("  hydra fmt    <arquivo.hy> [out.hy]  formata em canônico (reprint da AST)");
         s.println("  hydra version | help");
         s.println();
-        s.println("limites v1: sem fmt/new/test ainda; try/catch JS na v2; Native BLQ-02.");
+        s.println("limites v1: sem new/test; fmt preserva // por linha; try/catch JS na v2; Native BLQ-02.");
     }
 }

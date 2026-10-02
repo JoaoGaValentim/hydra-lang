@@ -17,14 +17,14 @@ forma de escrever algo que já tem forma, a melhoria está errada.
 
 | | |
 |---|---|
-| Fase | 6 parcial — frontend + IR/backends + migrate + CLI |
+| Fase | 6 — frontend + IR/backends + migrate + CLI + fmt |
 | Frontend | lexer/parser/diagnósticos HYP00x (`compiler/`) |
 | IR + alvos | JVM (ASM) e JS (`switch pc`); paridade de alvos no subset |
 | Migração | `hydra migrate` Kof→Hydra (AST-walk + gate + MIG0xx) |
-| CLI | `hydra check\|run\|migrate` (`bin/hydra`; fmt/new/test = F6-01b) |
+| CLI | `hydra check\|run\|migrate\|fmt` (`bin/hydra`; new/test = F6-01b rest.) |
 | Especificação | `hydra/ESPECIFICACAO.md` (congelada; EBNF ~71 linhas; keywords 20) |
 | Exemplos | `hydra/exemplos/` — 40 arquivos `.hy` |
-| Testes | `cd compiler && mvn -B test` (114+) |
+| Testes | `cd compiler && mvn -B test` (176) |
 | CI | verde (structure + upstream-compile + hydra-compiler) |
 | Memória | `hydra/STATE.md`, `BACKLOG.md`, `DECISOES.md`, `LOG.md` |
 
