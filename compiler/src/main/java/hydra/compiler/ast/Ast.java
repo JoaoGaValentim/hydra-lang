@@ -86,6 +86,12 @@ public final class Ast {
 
     public record FieldExpr(Expr receiver, String name, Token pos) implements Expr {}
 
+    /** `alvo[índice]` — acesso a elemento (List/Map). */
+    public record IndexExpr(Expr target, Expr index, Token pos) implements Expr {}
+
+    /** `chave to valor` — par de mapOf. */
+    public record PairExpr(Expr left, Expr right, Token pos) implements Expr {}
+
     public record AssignExpr(String op, Expr target, Expr value, Token pos) implements Expr {}
 
     public record IfExpr(Expr cond, Expr thenExpr, Expr elseExpr, Token pos) implements Expr {}

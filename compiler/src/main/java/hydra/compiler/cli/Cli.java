@@ -213,6 +213,9 @@ public final class Cli {
                 pb.redirectErrorStream(true);
                 pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
                 pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+                // readLine() no alvo JS lê o stdin do processo: sem INHERIT o
+                // pipe do ProcessBuilder nunca vê EOF e trava
+                pb.redirectInput(ProcessBuilder.Redirect.INHERIT);
                 Process p = pb.start();
                 boolean finished = p.waitFor(30, TimeUnit.SECONDS);
                 if (!finished) {

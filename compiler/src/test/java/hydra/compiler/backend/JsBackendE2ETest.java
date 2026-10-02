@@ -201,6 +201,30 @@ class JsBackendE2ETest {
     }
 
     @Test
+    @EnabledIf("nodeAvailable")
+    void collectionsParityInNode() throws Exception {
+        String outText = runJs("""
+                main() {
+                    val xs = listOf(10, 20, 30)
+                    for x in xs {
+                        println(x)
+                    }
+                    println(xs.length)
+                    println(xs[1])
+
+                    val m = mapOf("a" to 1, "b" to 2)
+                    println(m["b"])
+
+                    val s = setOf("A", "B")
+                    println(s.contains("A"))
+                    println(s.contains("Z"))
+                    println("hydra".contains("yd"))
+                }
+                """);
+        assertEquals("10%n20%n30%n3%n20%n2%ntrue%nfalse%ntrue%n".formatted(), outText);
+    }
+
+    @Test
     void emitsJsFileWithoutNode() throws Exception {
         // não requer Node: só prova a emissão
         Compiler.compileToJs("""

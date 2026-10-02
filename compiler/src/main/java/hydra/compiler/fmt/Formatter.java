@@ -550,6 +550,15 @@ public final class Formatter {
             } else if (e instanceof FieldExpr f) {
                 operand(sb, f.receiver());
                 sb.append('.').append(f.name());
+            } else if (e instanceof IndexExpr ix) {
+                operand(sb, ix.target());
+                sb.append('[');
+                printExpr(sb, ix.index());
+                sb.append(']');
+            } else if (e instanceof PairExpr p) {
+                operand(sb, p.left());
+                sb.append(" to ");
+                operand(sb, p.right());
             } else if (e instanceof AssignExpr a) {
                 operand(sb, a.target());
                 sb.append(' ').append(a.op()).append(' ');

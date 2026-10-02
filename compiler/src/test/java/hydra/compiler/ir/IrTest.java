@@ -285,6 +285,61 @@ class IrTest {
     }
 
     @Test
+    void collectionsLowerToDedicatedOps() {
+        Ir.Module m = ir("""
+                main() {
+                    val xs = listOf(1, 2)
+                    println(xs.length)
+                    val s = setOf("a")
+                    println(s.contains("a"))
+                    for x in xs {
+                        println(x)
+                    }
+                }
+                """);
+        String shape = Ir.shape(m);
+        assertTrue(shape.contains("newList(2)"), shape);
+        assertTrue(shape.contains("newSet(1)"), shape);
+        assertTrue(shape.contains("length(List<Int>)"), shape);
+        assertTrue(shape.contains("contains(Set<String>; String)"), shape);
+        assertTrue(shape.contains("iterInit(List<Int>"), shape);
+        assertTrue(shape.contains("iterNext("), shape);
+    }
+
+    @Test
+    void mapOfPairLowersToNewMap() {
+        Ir.Module m = ir("""
+                main() {
+                    val m = mapOf("a" to 1)
+                    println(m["a"])
+                }
+                """);
+        String shape = Ir.shape(m);
+        assertTrue(shape.contains("newMap(1)"), shape);
+        assertTrue(shape.contains("indexGet(Map<String,Int>; Int)"), shape);
+    }
+
+    @Test
+    void readLineLowersToOp() {
+        Ir.Module m = ir("""
+                main() {
+                    val s = readLine()
+                    println(s)
+                }
+                """);
+        assertTrue(Ir.shape(m).contains("readLine"), Ir.shape(m));
+    }
+
+    @Test
+    void pairOutsideMapOfIsHonestError() {
+        assertThrows(IllegalStateException.class, () -> ir("""
+                main() {
+                    val x = "a" to 1
+                }
+                """));
+    }
+
+    @Test
     void importsPreserved() {
         Ir.Module m = ir("""
                 import hydra.stdlib.IO

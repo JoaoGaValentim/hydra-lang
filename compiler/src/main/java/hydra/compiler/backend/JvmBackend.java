@@ -49,6 +49,11 @@ public final class JvmBackend {
         init.visitMaxs(0, 0);
         init.visitEnd();
 
+        if ("Main".equals(internal)) {
+            cw.visitField(ACC_PRIVATE | ACC_STATIC, "$stdin",
+                    "Ljava/io/BufferedReader;", null, null).visitEnd();
+        }
+
         for (Ir.Method m : cls.methods()) {
             emitMethod(cw, internal, m);
         }
@@ -80,7 +85,15 @@ public final class JvmBackend {
             }
         }
         int scratch = cursor;
-        int maxLocals = Math.max(cursor + 2, 1);
+        int scratchSlots = 0;
+        for (Ir.Block b : m.blocks()) {
+            for (Ir.Op op : b.ops()) {
+                if (op instanceof Ir.NewMap nm) scratchSlots = Math.max(scratchSlots, 4 * nm.keyTypes().size());
+                if (op instanceof Ir.NewList nl) scratchSlots = Math.max(scratchSlots, 2 * nl.valueTypes().size());
+                if (op instanceof Ir.NewSet ns) scratchSlots = Math.max(scratchSlots, 2 * ns.valueTypes().size());
+            }
+        }
+        int maxLocals = Math.max(cursor + scratchSlots + 2, 3);
 
         // try-catch: regiões fechadas (TryStart…TryEnd) pareiam, em ordem, com
         // os CatchStart seguintes — o layout de blocos do IR não é linear
@@ -116,7 +129,7 @@ public final class JvmBackend {
                     // Hydra carrega RuntimeException(msg) — extrai a mensagem.
                     unwrapExceptionMessage(mv, localSlots[cs.localIndex()]);
                 } else {
-                    emitOp(mv, op, blockLabels, localSlots, scratch, m);
+                    emitOp(mv, op, blockLabels, localSlots, scratch, m, owner);
                 }
             }
         }
@@ -151,7 +164,7 @@ public final class JvmBackend {
     }
 
     private void emitOp(MethodVisitor mv, Ir.Op op, Map<Integer, Label> blockLabels,
-                        int[] localSlots, int scratch, Ir.Method m) {
+                        int[] localSlots, int scratch, Ir.Method m, String owner) {
         if (op instanceof Ir.LoadLiteral lit) {
             emitLiteral(mv, lit);
         } else if (op instanceof Ir.LoadLocal ll) {
@@ -169,6 +182,55 @@ public final class JvmBackend {
             else mv.visitInsn(returnOpcode(ret.returnType()));
         } else if (op instanceof Ir.Pop p) {
             mv.visitInsn(slots(p.type()) == 2 ? POP2 : POP);
+        } else if (op instanceof Ir.NewList nl) {
+            emitNewList(mv, nl, scratch);
+        } else if (op instanceof Ir.NewSet ns) {
+            emitNewSet(mv, ns, scratch);
+        } else if (op instanceof Ir.NewMap nm) {
+            emitNewMap(mv, nm, scratch);
+        } else if (op instanceof Ir.IndexGet ig) {
+            emitIndexGet(mv, ig);
+        } else if (op instanceof Ir.Length len) {
+            emitLength(mv, len);
+        } else if (op instanceof Ir.Contains c) {
+            emitContains(mv, c);
+        } else if (op instanceof Ir.IterInit ii) {
+            if (ii.collectionType().name().startsWith("Map<")) {
+                // for k in map: itera as chaves (ordem de inserção)
+                mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "keySet",
+                        "()Ljava/util/Set;", true);
+            }
+            mv.visitMethodInsn(INVOKEINTERFACE, "java/lang/Iterable", "iterator",
+                    "()Ljava/util/Iterator;", true);
+            mv.visitVarInsn(ASTORE, localSlots[ii.localIndex()]);
+        } else if (op instanceof Ir.IterNext in) {
+            emitIterNext(mv, in, localSlots, blockLabels);
+        } else if (op instanceof Ir.ReadLine) {
+            // BufferedReader estático cacheado: várias readLine() no mesmo
+            // programa não podem recriar o reader (perde buffer)
+            Label ready = new Label();
+            mv.visitFieldInsn(GETSTATIC, owner, "$stdin", "Ljava/io/BufferedReader;");
+            mv.visitJumpInsn(IFNONNULL, ready);
+            mv.visitTypeInsn(NEW, "java/io/BufferedReader");
+            mv.visitInsn(DUP);
+            mv.visitTypeInsn(NEW, "java/io/InputStreamReader");
+            mv.visitInsn(DUP);
+            mv.visitFieldInsn(GETSTATIC, "java/lang/System", "in", "Ljava/io/InputStream;");
+            mv.visitMethodInsn(INVOKESPECIAL, "java/io/InputStreamReader", "<init>",
+                    "(Ljava/io/InputStream;)V", false);
+            mv.visitMethodInsn(INVOKESPECIAL, "java/io/BufferedReader", "<init>",
+                    "(Ljava/io/Reader;)V", false);
+            mv.visitFieldInsn(PUTSTATIC, owner, "$stdin", "Ljava/io/BufferedReader;");
+            mv.visitLabel(ready);
+            mv.visitFieldInsn(GETSTATIC, owner, "$stdin", "Ljava/io/BufferedReader;");
+            mv.visitMethodInsn(INVOKEVIRTUAL, "java/io/BufferedReader", "readLine",
+                    "()Ljava/lang/String;", false);
+            Label nn = new Label();
+            mv.visitInsn(DUP);
+            mv.visitJumpInsn(IFNONNULL, nn);
+            mv.visitInsn(POP);
+            mv.visitLdcInsn("");
+            mv.visitLabel(nn);
         } else if (op instanceof Ir.Jump j) {
             mv.visitJumpInsn(GOTO, blockLabels.get(j.targetBlock()));
         } else if (op instanceof Ir.JumpIfFalse jf) {
@@ -207,7 +269,161 @@ public final class JvmBackend {
      * Assert: pilha [cond(int)]; se 0, lança Throwable("<message>").
      * O Throwable permite que try/catch na fonte Hydra capture e siga.
      */
-    /** Pilha: [valor] → [String.valueOf(valor)]. */
+    /**
+     * NewList/NewSet/NewMap: os N valores estão na pilha;
+     * guarda em slots scratch pareados (2 slots cada) e chama add/put.
+     */
+    private void emitNewList(MethodVisitor mv, Ir.NewList nl, int scratchBase) {
+        int n = nl.valueTypes().size();
+        for (int i = n - 1; i >= 0; i--) {
+            boxBalance(mv, nl.valueTypes().get(i));
+            mv.visitVarInsn(ASTORE, scratchBase + 2 * i);
+        }
+        mv.visitTypeInsn(NEW, "java/util/ArrayList");
+        mv.visitInsn(DUP);
+        mv.visitMethodInsn(INVOKESPECIAL, "java/util/ArrayList", "<init>", "()V", false);
+        for (int i = 0; i < n; i++) {
+            mv.visitInsn(DUP);
+            mv.visitVarInsn(ALOAD, scratchBase + 2 * i);
+            mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Collection", "add",
+                    "(Ljava/lang/Object;)Z", true);
+            mv.visitInsn(POP);
+        }
+    }
+
+    /** Converte primitivo no topo para wrapper (referência); no-op para refs. */
+    private static void boxBalance(MethodVisitor mv, Ir.Type t) {
+        if (Ir.Type.INT.equals(t)) {
+            mv.visitMethodInsn(INVOKESTATIC, "java/lang/Long", "valueOf",
+                    "(J)Ljava/lang/Long;", false);
+        } else if (Ir.Type.FLOAT.equals(t)) {
+            mv.visitMethodInsn(INVOKESTATIC, "java/lang/Double", "valueOf",
+                    "(D)Ljava/lang/Double;", false);
+        } else if (Ir.Type.BOOL.equals(t)) {
+            mv.visitMethodInsn(INVOKESTATIC, "java/lang/Boolean", "valueOf",
+                    "(Z)Ljava/lang/Boolean;", false);
+        }
+    }
+
+    private void emitNewSet(MethodVisitor mv, Ir.NewSet ns, int scratchBase) {
+        int n = ns.valueTypes().size();
+        for (int i = n - 1; i >= 0; i--) {
+            boxBalance(mv, ns.valueTypes().get(i));
+            mv.visitVarInsn(ASTORE, scratchBase + 2 * i);
+        }
+        mv.visitTypeInsn(NEW, "java/util/LinkedHashSet");
+        mv.visitInsn(DUP);
+        mv.visitMethodInsn(INVOKESPECIAL, "java/util/LinkedHashSet", "<init>", "()V", false);
+        for (int i = 0; i < n; i++) {
+            mv.visitInsn(DUP);
+            mv.visitVarInsn(ALOAD, scratchBase + 2 * i);
+            mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Collection", "add",
+                    "(Ljava/lang/Object;)Z", true);
+            mv.visitInsn(POP);
+        }
+    }
+
+    private void emitNewMap(MethodVisitor mv, Ir.NewMap nm, int scratchBase) {
+        int n = nm.keyTypes().size();
+        // pilha: k0 v0 k1 v1 … (vn-1 no topo) → slots 4i (k), 4i+2 (v)
+        for (int i = n - 1; i >= 0; i--) {
+            boxBalance(mv, nm.valueTypes().get(i));
+            mv.visitVarInsn(ASTORE, scratchBase + 4 * i + 2);
+            boxBalance(mv, nm.keyTypes().get(i));
+            mv.visitVarInsn(ASTORE, scratchBase + 4 * i);
+        }
+        mv.visitTypeInsn(NEW, "java/util/LinkedHashMap");
+        mv.visitInsn(DUP);
+        mv.visitMethodInsn(INVOKESPECIAL, "java/util/LinkedHashMap", "<init>", "()V", false);
+        for (int i = 0; i < n; i++) {
+            mv.visitInsn(DUP);
+            mv.visitVarInsn(ALOAD, scratchBase + 4 * i);
+            mv.visitVarInsn(ALOAD, scratchBase + 4 * i + 2);
+            mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "put",
+                    "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;", true);
+            mv.visitInsn(POP);
+        }
+    }
+
+    private void emitIndexGet(MethodVisitor mv, Ir.IndexGet ig) {
+        if (ig.collectionType().name().startsWith("Map<")) {
+            // [map, key] → box(key) → Map.get(Object)
+            boxBalance(mv, ig.collectionType().keyType());
+            mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "get",
+                    "(Ljava/lang/Object;)Ljava/lang/Object;", true);
+        } else {
+            // [list, index(long)] → get(int)
+            mv.visitInsn(L2I);
+            mv.visitMethodInsn(INVOKEINTERFACE, "java/util/List", "get",
+                    "(I)Ljava/lang/Object;", true);
+        }
+        unbox(mv, ig.resultType());
+    }
+
+    private void unbox(MethodVisitor mv, Ir.Type t) {
+        if (t == null || Ir.Type.ANY.equals(t) || Ir.Type.VOID.equals(t)) return;
+        if (Ir.Type.INT.equals(t)) {
+            mv.visitTypeInsn(CHECKCAST, "java/lang/Long");
+            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Long", "longValue", "()J", false);
+        } else if (Ir.Type.FLOAT.equals(t)) {
+            mv.visitTypeInsn(CHECKCAST, "java/lang/Double");
+            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Double", "doubleValue", "()D", false);
+        } else if (Ir.Type.BOOL.equals(t)) {
+            mv.visitTypeInsn(CHECKCAST, "java/lang/Boolean");
+            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Boolean", "booleanValue", "()Z", false);
+        } else if (Ir.Type.STRING.equals(t)) {
+            mv.visitTypeInsn(CHECKCAST, "java/lang/String");
+        }
+    }
+
+    private void emitLength(MethodVisitor mv, Ir.Length l) {
+        if (Ir.Type.STRING.equals(l.subjectType())) {
+            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "length", "()I", false);
+        } else if (l.subjectType().name().startsWith("Map<")) {
+            mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "size", "()I", true);
+        } else {
+            mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Collection", "size", "()I", true);
+        }
+        mv.visitInsn(I2L);
+    }
+
+    private void emitContains(MethodVisitor mv, Ir.Contains c) {
+        if (Ir.Type.STRING.equals(c.collectionType())) {
+            mv.visitTypeInsn(CHECKCAST, "java/lang/String");
+            mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "contains",
+                    "(Ljava/lang/CharSequence;)Z", false);
+        } else if (c.collectionType().name().startsWith("Map<")) {
+            boxBalance(mv, c.valueType());
+            mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Map", "containsKey",
+                    "(Ljava/lang/Object;)Z", true);
+        } else {
+            boxBalance(mv, c.valueType());
+            mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Collection", "contains",
+                    "(Ljava/lang/Object;)Z", true);
+        }
+    }
+
+    private void emitIterNext(MethodVisitor mv, Ir.IterNext in, int[] localSlots,
+                              Map<Integer, Label> blockLabels) {
+        Label has = new Label();
+        mv.visitVarInsn(ALOAD, localSlots[in.localIndex()]);
+        mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Iterator", "hasNext", "()Z", true);
+        mv.visitJumpInsn(IFNE, has);
+        mv.visitJumpInsn(GOTO, blockLabels.get(in.exitBlock()));
+        mv.visitLabel(has);
+        mv.visitVarInsn(ALOAD, localSlots[in.localIndex()]);
+        mv.visitMethodInsn(INVOKEINTERFACE, "java/util/Iterator", "next",
+                "()Ljava/lang/Object;", true);
+        unbox(mv, in.elementType());
+        mv.visitVarInsn(storeOpcode(in.elementType()), localSlots[in.valueLocalIndex()]);
+    }
+
+    private static void pushInt(MethodVisitor mv, int n) {
+        if (n >= 0 && n <= 5) mv.visitInsn(ICONST_0 + n);
+        else if (n <= Byte.MAX_VALUE) mv.visitIntInsn(BIPUSH, n);
+        else mv.visitLdcInsn(n);
+    }
+
     private void emitToString(MethodVisitor mv, Ir.Type from) {
         String desc = switch (from.name()) {
             case "Int" -> "(J)Ljava/lang/String;";
@@ -456,11 +672,13 @@ public final class JvmBackend {
                 throw new IllegalStateException("JVM v1: println com " + n + " args");
             }
             Ir.Type at = call.parameterTypes().get(0);
+            boolean refToObject = !Ir.Type.STRING.equals(at) && !Ir.Type.INT.equals(at)
+                    && !Ir.Type.FLOAT.equals(at) && !Ir.Type.BOOL.equals(at);
             String pd = switch (at.name()) {
                 case "Int" -> "(J)V";
                 case "Float" -> "(D)V";
                 case "Bool" -> "(Z)V";
-                default -> "(Ljava/lang/String;)V";
+                default -> refToObject ? "(Ljava/lang/Object;)V" : "(Ljava/lang/String;)V";
             };
             // pilha: [arg] → [out, arg]
             if (Ir.Type.INT.equals(at) || Ir.Type.FLOAT.equals(at)) {
@@ -492,6 +710,11 @@ public final class JvmBackend {
     }
 
     private static String jvmDesc(Ir.Type t) {
+        if (t.isCollection()) {
+            if (t.name().startsWith("List<")) return "Ljava/util/List;";
+            if (t.name().startsWith("Set<")) return "Ljava/util/Set;";
+            return "Ljava/util/Map;";
+        }
         return switch (t.name()) {
             case "Int" -> "J";
             case "Float" -> "D";
@@ -510,21 +733,22 @@ public final class JvmBackend {
     private static int loadOpcode(Ir.Type t) {
         if (Ir.Type.INT.equals(t)) return LLOAD;
         if (Ir.Type.FLOAT.equals(t)) return DLOAD;
-        if (Ir.Type.STRING.equals(t) || Ir.Type.ANY.equals(t)) return ALOAD;
-        return ILOAD;
+        if (Ir.Type.BOOL.equals(t)) return ILOAD;
+        return ALOAD;
     }
 
     private static int storeOpcode(Ir.Type t) {
         if (Ir.Type.INT.equals(t)) return LSTORE;
         if (Ir.Type.FLOAT.equals(t)) return DSTORE;
-        if (Ir.Type.STRING.equals(t) || Ir.Type.ANY.equals(t)) return ASTORE;
-        return ISTORE;
+        if (Ir.Type.BOOL.equals(t)) return ISTORE;
+        return ASTORE;
     }
 
     private static int returnOpcode(Ir.Type t) {
         if (Ir.Type.INT.equals(t)) return LRETURN;
         if (Ir.Type.FLOAT.equals(t)) return DRETURN;
-        if (Ir.Type.STRING.equals(t) || Ir.Type.ANY.equals(t)) return ARETURN;
-        return IRETURN;
+        if (Ir.Type.BOOL.equals(t)) return IRETURN;
+        if (Ir.Type.VOID.equals(t)) return RETURN;
+        return ARETURN;
     }
 }

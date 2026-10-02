@@ -20,6 +20,42 @@ public final class Ir {
         public static final Type VOID = new Type("Void");
         public static final Type ANY = new Type("Any");
 
+        /** Tipo de elemento, ou Any se não for coleção. */
+        public Type elementType() {
+            if (name.startsWith("List<") && name.endsWith(">")) {
+                return new Type(name.substring(5, name.length() - 1));
+            }
+            if (name.startsWith("Set<") && name.endsWith(">")) {
+                return new Type(name.substring(4, name.length() - 1));
+            }
+            return ANY;
+        }
+
+        /** Tipo de valor de um Map, ou Any. */
+        public Type valueType() {
+            if (name.startsWith("Map<") && name.endsWith(">")) {
+                String inner = name.substring(4, name.length() - 1);
+                int comma = inner.indexOf(',');
+                if (comma >= 0) return new Type(inner.substring(comma + 1).trim());
+            }
+            return ANY;
+        }
+
+        /** Tipo de chave de um Map, ou Any. */
+        public Type keyType() {
+            if (name.startsWith("Map<") && name.endsWith(">")) {
+                String inner = name.substring(4, name.length() - 1);
+                int comma = inner.indexOf(',');
+                if (comma >= 0) return new Type(inner.substring(0, comma).trim());
+            }
+            return ANY;
+        }
+
+        public boolean isCollection() {
+            return name.startsWith("List<") || name.startsWith("Set<")
+                    || name.startsWith("Map<");
+        }
+
         public boolean isVoid() {
             return "Void".equals(name);
         }
@@ -73,6 +109,34 @@ public final class Ir {
 
     /** Descarta o topo da pilha; Type decide POP (1 slot) vs POP2 (2 slots). */
     public record Pop(Type type) implements Op {}
+
+    /** Cria List com N valores na pilha (v0 … vn-1); tipos para box/POP2. */
+    public record NewList(List<Type> valueTypes) implements Op {}
+
+    /** Cria Map com N pares (chave, valor intercalados na pilha). */
+    public record NewMap(List<Type> keyTypes, List<Type> valueTypes) implements Op {}
+
+    /** Cria Set com N valores na pilha. */
+    public record NewSet(List<Type> valueTypes) implements Op {}
+
+    /** [coleção, índice] → [resultType]; backends fazem o cast/unbox. */
+    public record IndexGet(Type collectionType, Type resultType) implements Op {}
+
+    /** [coleção|String] → [Int]. */
+    public record Length(Type subjectType) implements Op {}
+
+    /** [coleção|String, valor] → [Bool]. */
+    public record Contains(Type collectionType, Type valueType) implements Op {}
+
+    /** Desempilha coleção e guarda o iterador no local. */
+    public record IterInit(int localIndex, Type collectionType) implements Op {}
+
+    /** Avança o iterador para valueLocal (elementType); se esgotado salta. */
+    public record IterNext(int localIndex, int valueLocalIndex, Type elementType, int exitBlock)
+            implements Op {}
+
+    /** Lê uma linha de stdin. */
+    public record ReadLine() implements Op {}
     /** Salto incondicional para bloco índice. */
     public record Jump(int targetBlock) implements Op {}
 
@@ -198,6 +262,19 @@ public final class Ir {
             return "return(" + r.returnType().name() + ")";
         }
         if (op instanceof Pop p) return "pop(" + p.type().name() + ")";
+        if (op instanceof NewList nl) return "newList(" + nl.valueTypes().size() + ")";
+        if (op instanceof NewMap nm) return "newMap(" + nm.keyTypes().size() + ")";
+        if (op instanceof NewSet ns) return "newSet(" + ns.valueTypes().size() + ")";
+        if (op instanceof IndexGet ig) return "indexGet(" + ig.collectionType().name()
+                + "; " + ig.resultType().name() + ")";
+        if (op instanceof Length l) return "length(" + l.subjectType().name() + ")";
+        if (op instanceof Contains c) return "contains(" + c.collectionType().name()
+                + "; " + c.valueType().name() + ")";
+        if (op instanceof IterInit ii) return "iterInit(" + ii.collectionType().name()
+                + "; local " + ii.localIndex() + ")";
+        if (op instanceof IterNext in) return "iterNext(local " + in.localIndex()
+                + "; " + in.elementType().name() + "; -> " + in.exitBlock() + ")";
+        if (op instanceof ReadLine) return "readLine";
         if (op instanceof Jump j) return "jump(" + j.targetBlock() + ")";
         if (op instanceof JumpIfFalse jf) return "jumpIfFalse(" + jf.targetBlock() + ")";
         if (op instanceof LoadEnum le) return "loadEnum(" + le.enumName() + "." + le.caseName() + ")";

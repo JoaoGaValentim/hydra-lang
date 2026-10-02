@@ -38,7 +38,17 @@ public final class JsBackend {
         sb.append("function print(x) { process.stdout.write(String(x === undefined || x === null ? '' : x)); }\n");
         sb.append("function _str(x) { return String(x); }\n");
         sb.append("function _strF(x) { return Number.isInteger(x) ? x.toFixed(1) : String(x); }\n");
-        sb.append("function _b(x) { return x ? 'true' : 'false'; }\n\n");
+        sb.append("function _b(x) { return x ? 'true' : 'false'; }\n");
+        sb.append("let _stdin = null;\n");
+        sb.append("function _readLine() {\n");
+        sb.append("  if (_stdin === null) {\n");
+        sb.append("    const fs = require('fs');\n");
+        sb.append("    try { _stdin = fs.readFileSync(0, 'utf8'); } catch (_e) { _stdin = ''; }\n");
+        sb.append("  }\n");
+        sb.append("  const nl = _stdin.indexOf('\\n');\n");
+        sb.append("  if (nl < 0) { const line = _stdin; _stdin = ''; return line; }\n");
+        sb.append("  const line = _stdin.slice(0, nl); _stdin = _stdin.slice(nl + 1); return line;\n");
+        sb.append("}\n\n");
 
         for (Ir.Class c : module.classes()) {
             if (c.enumCases() != null && !c.enumCases().isEmpty()) continue;
@@ -189,7 +199,47 @@ public final class JsBackend {
             if (ret.returnType().isVoid()) sb.append("        return;\n");
             else sb.append("        return stack.pop();\n");
         } else if (op instanceof Ir.Pop) {
-            sb.append("        stack.pop();\n");        } else if (op instanceof Ir.Jump j) {
+            sb.append("        stack.pop();\n");
+        } else if (op instanceof Ir.NewList nl) {
+            emitNewCollection(sb, nl.valueTypes(), true);
+        } else if (op instanceof Ir.NewSet ns) {
+            emitNewCollection(sb, ns.valueTypes(), false);
+        } else if (op instanceof Ir.NewMap nm) {
+            sb.append("        { const vals = [];\n");
+            sb.append("          for (let i = 0; i < ").append(nm.keyTypes().size() * 2)
+                    .append("; i++) vals.unshift(stack.pop());\n");
+            sb.append("          const mp = new Map();\n");
+            sb.append("          for (let i = 0; i < vals.length; i += 2) mp.set(vals[i], vals[i + 1]);\n");
+            sb.append("          stack.push(mp); }\n");
+        } else if (op instanceof Ir.IndexGet ig) {
+            if (ig.collectionType().name().startsWith("Map<")) {
+                sb.append("        { const k = stack.pop(); const c = stack.pop(); stack.push(c.get(k)); }\n");
+            } else {
+                sb.append("        { const idx = stack.pop(); const c = stack.pop(); stack.push(c[idx]); }\n");
+            }
+        } else if (op instanceof Ir.Length) {
+            sb.append("        { const c = stack.pop(); stack.push(c.length); }\n");
+        } else if (op instanceof Ir.Contains) {
+            sb.append("        { const v = stack.pop(); const c = stack.pop(); ")
+                    .append("stack.push(typeof c === 'string' ? (c.includes(v) ? 1 : 0) ")
+                    .append(": (c.has ? (c.has(v) ? 1 : 0) : (c.includes(v) ? 1 : 0))); }\n");
+        } else if (op instanceof Ir.IterInit ii) {
+            if (ii.collectionType().name().startsWith("Map<")) {
+                // for k in map: itera as chaves (igual Map.keySet no JVM)
+                sb.append("        ").append(localName(m, ii.localIndex()))
+                        .append(" = stack.pop().keys();\n");
+            } else {
+                sb.append("        ").append(localName(m, ii.localIndex()))
+                        .append(" = stack.pop()[Symbol.iterator]();\n");
+            }
+        } else if (op instanceof Ir.IterNext in) {
+            sb.append("        { const n = ").append(localName(m, in.localIndex())).append(".next();\n");
+            sb.append("          if (n.done) { pc = ").append(in.exitBlock()).append("; break; }\n");
+            sb.append("          ").append(localName(m, in.valueLocalIndex()))
+                    .append(" = n.value; }\n");
+        } else if (op instanceof Ir.ReadLine) {
+            sb.append("        stack.push(_readLine());\n");
+        } else if (op instanceof Ir.Jump j) {
             sb.append("        pc = ").append(j.targetBlock()).append(";\n");
             sb.append("        break;\n");
         } else if (op instanceof Ir.JumpIfFalse jf) {
@@ -223,6 +273,18 @@ public final class JsBackend {
             throw new IllegalStateException("JS v1: NewObject (v2)");
         } else {
             throw new IllegalStateException("JS: op não suportada: " + op.getClass().getSimpleName());
+        }
+    }
+
+    /** List/Set a partir de N valores na pilha (ordem preservada). */
+    private void emitNewCollection(StringBuilder sb, List<Ir.Type> types, boolean list) {
+        sb.append("        { const vals = [];\n");
+        sb.append("          for (let i = 0; i < ").append(types.size())
+                .append("; i++) vals.unshift(stack.pop());\n");
+        if (list) {
+            sb.append("          stack.push(vals); }\n");
+        } else {
+            sb.append("          stack.push(new Set(vals)); }\n");
         }
     }
 

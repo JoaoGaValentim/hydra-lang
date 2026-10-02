@@ -331,12 +331,24 @@ public final class IrBuilder {
 
             ctx.openBlock(endIdx);
         } else if (head instanceof Ast.ForInHead in) {
+            Ir.Type iter = typeOfExpr(in.iter(), ctx);
+            if (!iter.isCollection() && !Ir.Type.ANY.equals(iter) && !Ir.Type.STRING.equals(iter)) {
+                throw new IllegalStateException("IR: for-in espera List/Set/Map/String, achou "
+                        + iter.name());
+            }
+            Ir.Type elem = iter.name().startsWith("Map<") ? iter.keyType() : iter.elementType();
             lowerExpr(in.iter(), ctx);
-            ctx.emit(new Ir.Pop(Ir.Type.ANY));
-            int idx = ctx.declare(in.name(), Ir.Type.ANY);
-            ctx.emit(new Ir.LoadLiteral(Ir.Type.ANY, null));
-            ctx.emit(new Ir.StoreLocal(idx, Ir.Type.ANY));
+            int iterLocal = ctx.declareTemp(Ir.Type.ANY);
+            ctx.emit(new Ir.IterInit(iterLocal, iter));
+            int valueLocal = ctx.declare(in.name(), elem);
+            int loopIdx = ctx.reserveBlock();
+            int endIdx = ctx.reserveBlock();
+            ctx.emit(new Ir.Jump(loopIdx));
+            ctx.openBlock(loopIdx);
+            ctx.emit(new Ir.IterNext(iterLocal, valueLocal, elem, endIdx));
             lowerBlock(f.body(), ctx);
+            ctx.emit(new Ir.Jump(loopIdx));
+            ctx.openBlock(endIdx);
         } else if (head instanceof Ast.ForCondHead ch) {
             int loopIdx = ctx.reserveBlock();
             int bodyIdx = ctx.reserveBlock();
@@ -548,11 +560,25 @@ public final class IrBuilder {
             ctx.emit(new Ir.Unary(u.op(), typeOfExpr(u.operand(), ctx)));
         } else if (e instanceof Ast.CallExpr c) {
             lowerCall(c, ctx);
+        } else if (e instanceof Ast.IndexExpr ix) {
+            Ir.Type target = typeOfExpr(ix.target(), ctx);
+            if (target.name().startsWith("Set<")) {
+                throw new IllegalStateException("IR: Set não é indexável na v1 — use contains()");
+            }
+            Ir.Type result = target.name().startsWith("Map<") ? target.valueType() : target.elementType();
+            lowerExpr(ix.target(), ctx);
+            lowerExpr(ix.index(), ctx);
+            ctx.emit(new Ir.IndexGet(target, result));
+        } else if (e instanceof Ast.PairExpr) {
+            throw new IllegalStateException("IR: `a to b` só é válido dentro de mapOf");
         } else if (e instanceof Ast.FieldExpr fe) {
             // Color.Red — enum constante sem receiver local
             if (fe.receiver() instanceof Ast.IdentExpr re && typeOf.containsKey(re.name())
                     && funParams.get(re.name()) == null && ctx.tryIndex(re.name()) == null) {
                 ctx.emit(new Ir.LoadEnum(re.name(), fe.name()));
+            } else if ("length".equals(fe.name())) {
+                lowerExpr(fe.receiver(), ctx);
+                ctx.emit(new Ir.Length(typeOfExpr(fe.receiver(), ctx)));
             } else {
                 lowerExpr(fe.receiver(), ctx);
                 Ir.Type recv = typeOfExpr(fe.receiver(), ctx);
@@ -619,6 +645,21 @@ public final class IrBuilder {
     private void lowerCall(Ast.CallExpr c, MethodCtx ctx) {
         if (c.callee() instanceof Ast.IdentExpr id) {
             String name = id.name();
+            if (!funParams.containsKey(name) && "mapOf".equals(name)) {
+                List<Ir.Type> keys = new ArrayList<>();
+                List<Ir.Type> vals = new ArrayList<>();
+                for (Ast.Expr a : c.args()) {
+                    if (!(a instanceof Ast.PairExpr p)) {
+                        throw new IllegalStateException("IR: mapOf espera pares `chave to valor`");
+                    }
+                    lowerExpr(p.left(), ctx);
+                    lowerExpr(p.right(), ctx);
+                    keys.add(typeOfExpr(p.left(), ctx));
+                    vals.add(typeOfExpr(p.right(), ctx));
+                }
+                ctx.emit(new Ir.NewMap(keys, vals));
+                return;
+            }
             List<Ir.Type> argTs = new ArrayList<>();
             for (Ast.Expr a : c.args()) {
                 lowerExpr(a, ctx);
@@ -633,13 +674,29 @@ public final class IrBuilder {
                 ctx.emit(new Ir.Call(name, expected, funRet.getOrDefault(name, Ir.Type.VOID), false));
             } else if ("println".equals(name) || "print".equals(name)) {
                 ctx.emit(new Ir.Call(name, argTs, Ir.Type.VOID, false));
-            } else if ("listOf".equals(name) || "mapOf".equals(name) || "setOf".equals(name)) {
-                String rt = "listOf".equals(name) ? "List" : "Map";
-                ctx.emit(new Ir.Call(name, argTs, new Ir.Type(rt), false));
+            } else if ("listOf".equals(name)) {
+                ctx.emit(new Ir.NewList(argTs));
+            } else if ("setOf".equals(name)) {
+                ctx.emit(new Ir.NewSet(argTs));
+            } else if ("readLine".equals(name)) {
+                if (!c.args().isEmpty()) {
+                    throw new IllegalStateException("IR: readLine não recebe argumentos");
+                }
+                ctx.emit(new Ir.ReadLine());
             } else {
                 ctx.emit(new Ir.Call(name, argTs, Ir.Type.ANY, false));
             }
         } else if (c.callee() instanceof Ast.FieldExpr fe) {
+            if ("contains".equals(fe.name()) && c.args().size() == 1) {
+                Ir.Type recv = typeOfExpr(fe.receiver(), ctx);
+                if (recv.isCollection() || Ir.Type.STRING.equals(recv)) {
+                    lowerExpr(fe.receiver(), ctx);
+                    Ir.Type at = typeOfExpr(c.args().get(0), ctx);
+                    lowerExpr(c.args().get(0), ctx);
+                    ctx.emit(new Ir.Contains(recv, at));
+                    return;
+                }
+            }
             lowerExpr(fe.receiver(), ctx);
             List<Ir.Type> argTs = new ArrayList<>();
             for (Ast.Expr a : c.args()) {
@@ -708,11 +765,49 @@ public final class IrBuilder {
         }
         if (e instanceof Ast.UnaryExpr u) return typeOfExpr(u.operand(), ctx);
         if (e instanceof Ast.CallExpr c) {
+            if (c.callee() instanceof Ast.FieldExpr fe && "contains".equals(fe.name())) {
+                return Ir.Type.BOOL;
+            }
             if (c.callee() instanceof Ast.IdentExpr id) {
                 if (funRet.containsKey(id.name())) return funRet.get(id.name());
-                return Ir.Type.VOID;
+                switch (id.name()) {
+                    case "listOf" -> {
+                        return new Ir.Type("List<" + homogeneousType(argTypes(c.args(), ctx)).name() + ">");
+                    }
+                    case "setOf" -> {
+                        return new Ir.Type("Set<" + homogeneousType(argTypes(c.args(), ctx)).name() + ">");
+                    }
+                    case "mapOf" -> {
+                        List<Ir.Type> ks = new ArrayList<>();
+                        List<Ir.Type> vs = new ArrayList<>();
+                        for (Ast.Expr a : c.args()) {
+                            if (a instanceof Ast.PairExpr p) {
+                                ks.add(typeOfExpr(p.left(), ctx));
+                                vs.add(typeOfExpr(p.right(), ctx));
+                            }
+                        }
+                        return new Ir.Type("Map<" + homogeneousType(ks).name()
+                                + "," + homogeneousType(vs).name() + ">");
+                    }
+                    case "readLine" -> {
+                        return Ir.Type.STRING;
+                    }
+                    default -> {
+                        return Ir.Type.VOID;
+                    }
+                }
             }
             return Ir.Type.ANY;
+        }
+        if (e instanceof Ast.IndexExpr ix) {
+            Ir.Type target = typeOfExpr(ix.target(), ctx);
+            return target.name().startsWith("Map<") ? target.valueType() : target.elementType();
+        }
+        if (e instanceof Ast.PairExpr p) {
+            return Ir.Type.ANY;
+        }
+        if (e instanceof Ast.FieldExpr fe2 && "length".equals(fe2.name())) {
+            return Ir.Type.INT;
         }
         if (e instanceof Ast.FieldExpr fe) {
             if (fe.receiver() instanceof Ast.IdentExpr re && typeOf.containsKey(re.name())
@@ -735,6 +830,22 @@ public final class IrBuilder {
             if (arm.result() != null) return typeOfExpr(arm.result(), ctx);
         }
         return Ir.Type.ANY;
+    }
+
+    /** Tipo comum dos argumentos (List<Int>, List<String>…); conflito → Any. */
+    private Ir.Type homogeneousType(List<Ir.Type> ts) {
+        if (ts.isEmpty()) return Ir.Type.ANY;
+        Ir.Type first = ts.get(0);
+        for (Ir.Type t : ts) {
+            if (!t.equals(first)) return Ir.Type.ANY;
+        }
+        return first;
+    }
+
+    private List<Ir.Type> argTypes(List<Ast.Expr> args, MethodCtx ctx) {
+        List<Ir.Type> out = new ArrayList<>();
+        for (Ast.Expr a : args) out.add(typeOfExpr(a, ctx));
+        return out;
     }
 
     private Ir.Type typeOf(String name) {

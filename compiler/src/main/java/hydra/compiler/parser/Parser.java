@@ -615,6 +615,12 @@ public final class Parser {
 
     private Expr parseAssign() {
         Expr left = parseBinary(0);
+        // `a to b` — par de mapOf; mesma precedência de == (não há outro uso de `to`)
+        if (isWord("to")) {
+            Token t = toks.get(i++);
+            Expr right = parseBinary(0);
+            return new PairExpr(left, right, t);
+        }
         TokenKind k = peek().kind();
         String op = switch (k) {
             case EQ -> "=";
@@ -723,7 +729,7 @@ public final class Parser {
                 i++;
                 Expr idx = parseExpr();
                 Token rb = expect(TokenKind.RBRACKET, "]");
-                e = new CallExpr(new IdentExpr("get", rb), List.of(idx), rb); // simplificado
+                e = new IndexExpr(e, idx, rb);
             } else {
                 break;
             }

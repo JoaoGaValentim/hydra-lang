@@ -322,6 +322,59 @@ class JvmBackendE2ETest {
     }
 
     @Test
+    void collectionsRunOnJvm() throws Exception {
+        String outText = runMain("""
+                main() {
+                    val xs = listOf(10, 20, 30)
+                    for x in xs {
+                        println(x)
+                    }
+                    println(xs.length)
+                    println(xs[1])
+
+                    val m = mapOf("a" to 1, "b" to 2)
+                    println(m["b"])
+                    println(m.length)
+
+                    val s = setOf("A", "B")
+                    println(s.contains("A"))
+                    println(s.contains("Z"))
+                }
+                """);
+        assertEquals("10%n20%n30%n3%n20%n2%n2%ntrue%nfalse%n".formatted(), outText);
+    }
+
+    @Test
+    void stringLengthAndContains() throws Exception {
+        String outText = runMain("""
+                main() {
+                    val s = "hydra"
+                    println(s.length)
+                    println(s.contains("yd"))
+                    println(s.contains("zz"))
+                }
+                """);
+        assertEquals("5%ntrue%nfalse%n".formatted(), outText);
+    }
+
+    @Test
+    void readLineReadsStdin() throws Exception {
+        java.io.InputStream old = System.in;
+        System.setIn(new java.io.ByteArrayInputStream("Mel\n".getBytes(StandardCharsets.UTF_8)));
+        try {
+            String outText = runMain("""
+                    main() {
+                        val nome = readLine()
+                        println("ola, " + nome)
+                    }
+                    """);
+            assertEquals("ola, Mel%n".formatted(), outText);
+        } finally {
+            System.setIn(old);
+        }
+    }
+
+    @Test
     void compiledClassIsValidJvm() throws Exception {
         Compiler.compileTo("""
                 main() {
