@@ -30,9 +30,9 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
 | F2-01 | feito | L | F1 | Lexer Hydra (`compiler/`) — 12 testes. |
-| F2-02 | fazendo | L | F2-01 | Parser + AST — núcleo pronto (unit, fun, type, stmts, exprs); 17 testes; `enum`/destructuring completo/`match` de enum pendentes. |
+| F2-02 | feito | L | F2-01 | Parser + AST — unit, fun (bloco/`= expr`/abstrato), type, enum, stmts, exprs, lambda, match com guardas/destructuring. 21 testes; 33/33 total. |
 | F2-03 | fazendo | M | F2-02 | Diagnósticos com linha/coluna (SyntaxError); faltam casos de borda e sugestões. |
-| F2-04 | todo | M | F2-02 | Prova: exemplos da Fase 1 → AST equivalente à do Kof. |
+| F2-04 | fazendo | M | F2-02 | Prova: 34 exemplos `.hy` parseiam; falta comparar AST com Kof. |
 
 ## Fase 3 — IR e backends
 

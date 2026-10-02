@@ -251,9 +251,109 @@ class ParserTest {
     }
 
     @Test
-    void parsesEnumDeclAsType() {
-        // enum ainda não é implementado no parser; garante erro claro
-        assertThrows(SyntaxError.class, () -> parse("enum Color { Red }"));
+    void parsesEnumDecl() {
+        Unit u = parse("""
+                enum Color {
+                    Red
+                    Green
+                    Blue
+                }
+
+                nome(c: Color): String {
+                    match (c) {
+                        case Color.Red -> "red"
+                        default -> "?"
+                    }
+                }
+
+                main() {
+                    println(nome(Color.Red))
+                }
+                """);
+        EnumDecl e = (EnumDecl) u.decls().get(0);
+        assertEquals("Color", e.name());
+        assertEquals(List.of("Red", "Green", "Blue"), e.cases());
+        FunDecl main = (FunDecl) u.decls().get(2);
+        ExprStmt stmt = (ExprStmt) main.body().stmts().get(0);
+        CallExpr printlnCall = (CallExpr) stmt.expr();
+        CallExpr nomeCall = (CallExpr) printlnCall.args().get(0);
+        FieldExpr arg = (FieldExpr) nomeCall.args().get(0);
+        assertEquals("Color", ((IdentExpr) arg.receiver()).name());
+        assertEquals("Red", arg.name());
+    }
+
+    @Test
+    void enumWithoutCasesIsError() {
+        SyntaxError e = assertThrows(SyntaxError.class, () -> parse("enum Color { }"));
+        assertTrue(e.getMessage().contains("sem casos"));
+    }
+
+    @Test
+    void parsesTypeMembers() {
+        Unit u = parse("""
+                type User(var name: String, var age: Int) {
+                    greet(): String {
+                        return "Hello, " + name
+                    }
+
+                    celebrate() {
+                        age = age + 1
+                    }
+                }
+
+                main() {
+                    val u = User("Mel", 26)
+                    println(u.greet())
+                    u.celebrate()
+                    println(u.age)
+                }
+                """);
+        TypeDecl t = (TypeDecl) u.decls().get(0);
+        assertEquals(2, t.fields().size());
+        assertTrue(t.fields().get(0).mutable());
+        assertEquals(2, t.methods().size());
+        assertEquals("greet", t.methods().get(0).name());
+        assertEquals("String", t.methods().get(0).returnType().name());
+        assertNull(t.methods().get(1).returnType());
+    }
+
+    @Test
+    void parsesNullableReturn() {
+        Unit u = parse("""
+                acharTexto(flag: Bool): String? {
+                    if (flag) {
+                        return "encontrado"
+                    }
+                    return null
+                }
+                """);
+        FunDecl f = (FunDecl) u.decls().get(0);
+        assertTrue(f.returnType().nullable());
+        assertEquals("String", f.returnType().name());
+        IfStmt ifs = (IfStmt) f.body().stmts().get(0);
+        assertInstanceOf(ReturnStmt.class, ifs.thenBlock().stmts().get(0));
+        ReturnStmt retNull = (ReturnStmt) f.body().stmts().get(1);
+        assertInstanceOf(NullLit.class, retNull.value());
+    }
+
+    @Test
+    void parsesTrailingStyleLambdaCall() {
+        Unit u = parse("""
+                aplicar(x: Int, f: (Int) -> Int): Int {
+                    return f(x)
+                }
+
+                main() {
+                    println(aplicar(5, (x: Int) -> x + 1))
+                }
+                """);
+        FunDecl main = (FunDecl) u.decls().get(1);
+        ExprStmt stmt = (ExprStmt) main.body().stmts().get(0);
+        CallExpr printlnCall = (CallExpr) stmt.expr();
+        CallExpr aplicarCall = (CallExpr) printlnCall.args().get(0);
+        LambdaExpr lam = (LambdaExpr) aplicarCall.args().get(1);
+        assertEquals(1, lam.params().size());
+        assertEquals("Int", lam.params().get(0).type().name());
     }
 
     @Test
@@ -282,12 +382,20 @@ class ParserTest {
         var dir = java.nio.file.Path.of("../hydra/exemplos");
         var files = java.util.stream.Stream.of(
                         "01-hello.hy", "02-val-var.hy", "03-funcoes.hy",
-                        "04-tipos-immutable.hy", "11-for-colecao.hy",
-                        "12-for-contagem.hy", "13-for-condicao.hy",
-                        "14-strings.hy", "16-erros.hy", "17-lambdas.hy",
+                        "04-tipos-immutable.hy", "05-tipos-membros.hy",
+                        "06-enum.hy", "07-if-expressao.hy", "08-match-basico.hy",
+                        "09-match-guardas.hy", "10-match-destructuring.hy",
+                        "11-for-colecao.hy", "12-for-contagem.hy", "13-for-condicao.hy",
+                        "14-strings.hy", "15-nullable.hy", "16-erros.hy",
+                        "17-lambdas.hy", "18-trailing-lambda.hy",
+                        "19-listas.hy", "22-heranca-super.hy", "23-tipo-abstrato.hy",
                         "27-mat-comparacoes.hy", "28-assign-composto.hy",
+                        "29-closures.hy", "30-mini-programa.hy",
+                        "31-idiomas-migrados.hy", "32-null-match.hy",
                         "33-funcao-expressao.hy", "34-type-mutavel.hy",
-                        "38-comentarios.hy", "39-bitwise.hy"
+                        "35-enum-exaustivo.hy", "36-tipos-anotados.hy",
+                        "38-comentarios.hy", "39-bitwise.hy",
+                        "40-ordem-superior.hy"
                 )
                 .map(dir::resolve)
                 .toList();

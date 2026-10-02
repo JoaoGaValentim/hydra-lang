@@ -24,6 +24,8 @@ public final class Ast {
 
     public record TypeDecl(String name, TypeRef extendsType, List<Field> fields, List<FunDecl> methods, Token pos) implements Decl {}
 
+    public record EnumDecl(String name, List<String> cases, Token pos) implements Decl {}
+
     public record Field(boolean mutable, TypeRef type, String name, Token pos) implements Node {}
 
     public record TypeRef(String name, boolean nullable, Token pos) implements Node {}

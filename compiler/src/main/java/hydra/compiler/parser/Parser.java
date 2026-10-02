@@ -106,6 +106,9 @@ public final class Parser {
         if (check(TokenKind.TYPE)) {
             return parseTypeDecl();
         }
+        if (check(TokenKind.ENUM)) {
+            return parseEnumDecl();
+        }
         // fun-decl: ident ( params ) [ : typ ] bloco| = expr
         // test/application contextuais: ident STRING bloco | application { ... }
         Token nameTok = expectIdent("declaração");
@@ -114,7 +117,6 @@ public final class Parser {
             return parseFunRest(name, nameTok);
         }
         if ("test".equals(name) && check(TokenKind.STRING)) {
-            // test "nome" { ... } — tratado como decl vazia por enquanto? parse body as FunDecl sintético
             Token str = toks.get(i++);
             expect(TokenKind.LBRACE, "{ de test");
             Block body = parseBlockBody();
@@ -122,11 +124,26 @@ public final class Parser {
         }
         if ("application".equals(name) && check(TokenKind.LBRACE)) {
             i++;
-            // consome bloco até fechar — parse como bloco de decls internos simplificado
             Block body = parseBlockBody();
             return new FunDecl("application", List.of(), null, body, nameTok);
         }
-        throw new SyntaxError("esperava '(' para função ou 'type'/'import'", nameTok.line(), nameTok.col());
+        throw new SyntaxError("esperava '(' para função, 'type' ou 'enum'", nameTok.line(), nameTok.col());
+    }
+
+    private Decl parseEnumDecl() {
+        Token start = expect(TokenKind.ENUM, "enum");
+        String name = expectIdent("nome do enum").text();
+        expect(TokenKind.LBRACE, "{");
+        List<String> cases = new ArrayList<>();
+        while (!check(TokenKind.RBRACE) && !check(TokenKind.EOF)) {
+            Token c = expectIdent("caso de enum");
+            cases.add(c.text());
+        }
+        expect(TokenKind.RBRACE, "}");
+        if (cases.isEmpty()) {
+            throw new SyntaxError("enum sem casos: " + name, start.line(), start.col());
+        }
+        return new EnumDecl(name, cases, start);
     }
 
     private Decl parseTypeDecl() {
@@ -198,10 +215,14 @@ public final class Parser {
             Block body = parseBlock();
             return new FunDecl(name, params, ret, body, nameTok);
         }
-        expect(TokenKind.EQ, "= ou {");
-        Expr e = parseExpr();
-        Block body = new Block(List.of(new ReturnStmt(e, e.pos())), e.pos());
-        return new FunDecl(name, params, ret, body, nameTok);
+        if (check(TokenKind.EQ)) {
+            i++;
+            Expr e = parseExpr();
+            Block body = new Block(List.of(new ReturnStmt(e, e.pos())), e.pos());
+            return new FunDecl(name, params, ret, body, nameTok);
+        }
+        // método abstrato (assinatura sem corpo) — só em type-decl
+        return new FunDecl(name, params, ret, null, nameTok);
     }
 
     private Field parseField() {
@@ -213,6 +234,27 @@ public final class Parser {
     }
 
     private TypeRef parseTypeRef() {
+        // tipo-função: ( T1, T2 ) -> R  (simplificado: aceita e consome)
+        if (check(TokenKind.LPAREN)) {
+            int save = i;
+            i++; // (
+            try {
+                if (!check(TokenKind.RPAREN)) {
+                    do {
+                        parseTypeRef();
+                    } while (match(TokenKind.COMMA));
+                }
+                expect(TokenKind.RPAREN, ")");
+                if (check(TokenKind.ARROW)) {
+                    i++;
+                    TypeRef ret = parseTypeRef();
+                    return new TypeRef("fun", ret != null && ret.nullable(), ret != null ? ret.pos() : peek());
+                }
+            } catch (SyntaxError e) {
+                // não era tipo-função
+            }
+            i = save;
+        }
         Token name = expectIdent("tipo");
         boolean nullable = match(TokenKind.QUESTION);
         return new TypeRef(name.text(), nullable, name);
@@ -403,11 +445,25 @@ public final class Parser {
                         Token b = expectIdent("caso de enum");
                         patternType = a.text() + "." + b.text();
                     } else {
-                        patternName = a.text();
-                        if (check(TokenKind.IDENT)) {
-                            patternName = toks.get(i++).text();
-                        }
+                        // binding: case String s  |  destructuring: case Point x y
                         patternType = a.text();
+                        StringBuilder names = new StringBuilder(a.text());
+                        while (check(TokenKind.IDENT) || check(TokenKind.VAR) || check(TokenKind.VAL)) {
+                            if (check(TokenKind.VAR) || check(TokenKind.VAL)) {
+                                i++;
+                                continue;
+                            }
+                            names.append(' ').append(toks.get(i++).text());
+                        }
+                        String all = names.toString();
+                        int sp = all.indexOf(' ');
+                        if (sp < 0) {
+                            patternType = all;
+                            patternName = null;
+                        } else {
+                            patternType = all.substring(0, sp);
+                            patternName = all.substring(sp + 1);
+                        }
                     }
                 } else if (check(TokenKind.INT) || check(TokenKind.STRING) || check(TokenKind.TRUE) || check(TokenKind.FALSE) || check(TokenKind.NULL)) {
                     Token lit = toks.get(i++);
