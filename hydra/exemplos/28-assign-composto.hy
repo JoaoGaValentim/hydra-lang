@@ -1,0 +1,12 @@
+// 28 — atribuição composta: = += -= *= /= (sem ++/--)
+main() {
+    var x = 10
+    x += 5
+    println(x)
+    x -= 3
+    println(x)
+    x *= 2
+    println(x)
+    x /= 4
+    println(x)
+}

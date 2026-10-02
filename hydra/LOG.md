@@ -1,24 +1,27 @@
 # LOG — Hydra
 
-Diário cronológico. Uma linha por ciclo. Métricas da seção 8 a cada ~10/30 ciclos.
+Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 
 ---
 
 ## 2026-10-01
 
-- **Ciclo 1** | Fase 0 | Feito: clone `KofLang/Kof4j` → `kof_upstream/`; remotos `origin`/`upstream`; leitura de AGENTS.md, PHILOSOPHY.md, docs/philosophy.md, language-reference (grammar, syntax, statements, expressions, functions, classes, closures, modules, lexical-structure); auditoria inicial `hydra/AUDITORIA-SINTAXE.md`; `STATE.md`, `BACKLOG.md`, `DECISOES.md`, `LOG.md`. | Verificado: JDK 25 + Maven 3.10 no host; `gh auth` OK como JoaoGaValentim; build dos módulos core do Kof OK; shade de `kof-cli` falha com `${revision}` (BLQ-01); `mvn test` em background — **sem número final ainda**. | Decisão: D-HYD-001…010 registradas (compat, IR, qualidade, .hy prévia, newline, comentários, hipóteses for/match, erros, null/conc.). | Próximo: fechar baseline de testes; ler frontend/backend; skeleton do repo + push.
-- **Ciclo 2** | Fase 0 | Feito: baseline medido; esqueleto repo (LICENSE GPL-3.0, NOTICE Hydra←Kof, README, .gitignore, `.github/workflows/ci.yml`); auditoria §15 com `TokenType.java` (~64 word tokens); `infra` contextual descoberto no `Parser.java`; leitura de `Parser`/`TypeDeclarations`/`StatementParser`/`TokenType`/`compiler-architecture`; CI com job `structure` + `upstream-compile`. | Verificado: subconjunto focado `mvn test -pl kof-compiler -Dtest=…` → **808 testes / 155F / 8E / 26S**; causa dominante = assembly Native no macOS (`as` Apple vs GNU ELF); `kof-cli` shade ainda quebra com `${revision}`; módulos core instalam. | Decisão: baseline honesta registrada no STATE (não inventar 3000+); CI inicial só valida estrutura + compila upstream (sem esconder falha com continue-on-error). | Próximo: commit+push do esqueleto; fechar pendências da auditoria; iniciar `ESPECIFICACAO.md`.
+- **Ciclo 1** | Fase 0 | Feito: clone `KofLang/Kof4j` → `kof_upstream/`; remotos; docs lidos; auditoria inicial; memória. | Verificado: JDK 25 + Maven; gh OK; build core Kof OK; shade `kof-cli` falha (BLQ-01). | Decisão: D-HYD-001..010. | Próximo: baseline; skeleton; push.
+- **Ciclo 2** | Fase 0 | Feito: baseline medida; skeleton (LICENSE/NOTICE/README/CI); auditoria §15; commit `4123122` push. | Verificado: 808/155F/8E/26S focado; causa dominante Native macOS. | Decisão: baseline honesta no STATE. | Próximo: CI no GitHub; fechar auditoria; ESPECIFICACAO.
+- **Ciclo 3** | Fase 0→1 | Feito: fix CI (clone Kof antes de setup-java; cache no pom do upstream; actions v5) `e0b3dce`; `ESPECIFICACAO.md` rascunho 0.1; **39** exemplos `.hy`; §17 da auditoria fechado (keywords 62; sem interpolação); D-HYD-011..013; CI **verde** (`36952608349`). | Verificado: `gh run watch` → structure ✓ + upstream-compile ✓ (1m30s no ubuntu). EBNF não-vazio ≈71 linhas. | Decisão: conjunto alvo de 20 keywords; EBNF normativa no rascunho; strings sem interpolação. | Próximo: relitura crítica dos exemplos; checklist orçamento F1-04; congelar Fase 1; só então lexer (Fase 2).
 
-### Métricas (Fase 0 — medidas 2026-10-01)
+### Métricas
 
 | Métrica | Valor |
 |---|---|
-| Keywords/token de palavra Kof (`TokenType`+docs) | ~64 + contextuais |
-| Meta keywords Hydra | ≤20 |
-| Formas de repetir (Kof) | 4 → meta 1 |
-| Formas de ramificar (Kof) | 4 → meta 2 |
-| Comentários (Kof) | 2 → meta 1 |
-| Baseline testes (foco, host macOS) | 808 run / 155 F / 8 E / 26 S |
-| Baseline Native (macOS) | **inexecutável** (as Apple ≠ GNU ELF) |
-| Baseline suíte cheia upstream | **não medida** neste host |
-| CI Hydra | workflow criado; validar no push |
+| Keywords/token de palavra Kof | **62** (medido em `TokenType.java`) + 5 contextuais |
+| Meta keywords Hydra | ≤20 (conjunto alvo em ESPECIFICACAO §2) |
+| Linhas EBNF (não vazias, rascunho) | **~71** (meta ≤120) |
+| Formas de repetir (Kof→Hydra) | 4 → 1 (`for` ×3 cabeçalhos) |
+| Formas de ramificar | 4 → 2 (`if` + `match`) |
+| Comentários | 2 → 1 (`//`) |
+| Exemplos `.hy` | **39** |
+| Baseline testes (foco, macOS) | 808 / 155F / 8E / 26S |
+| Baseline Native (macOS) | inexecutável (as Apple ≠ GNU ELF) |
+| CI Hydra | **VERDE** — structure + upstream-compile |
+| Commits | `4123122` (root) · `e0b3dce` (CI fix) |

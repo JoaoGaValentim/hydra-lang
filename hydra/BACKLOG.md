@@ -9,21 +9,21 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
-| F0-01 | feito | M | — | Linha de baseline `mvn test` do Kof — **medida no host macOS** (808/155F/8E/26S no subconjunto focado; native inexecutável; suíte cheia não fecha aqui). Repetir em Linux/CI depois. |
-| F0-02 | fazendo | M | — | Fechar auditoria: ler lexer/parser/AST/IR/backend + exemplos restantes. |
-| F0-03 | todo | S | F0-02 | Contar keywords reais em `TokenType.java`. |
-| F0-04 | todo | S | F0-02 | Confirmar ausência/presença de interpolação no código. |
-| F0-05 | todo | S | — | `STATE.md` final da Fase 0 + commit. |
-| F0-06 | todo | M | — | Esqueleto do repo: LICENSE, NOTICE, README, .gitignore, ci.yml, primeiro push. |
+| F0-01 | feito | M | — | Linha de baseline `mvn test` do Kof — medida no host (808/155F/8E/26S focado; native inexecutável no macOS). |
+| F0-02 | feito | M | — | Auditoria: lexer/parser/AST/IR/backend + idiomas de treino. §17 quase fechado. |
+| F0-03 | feito | S | F0-02 | Contagem keywords: **62** word-form em `TokenType.java` (+5 contextuais). |
+| F0-04 | feito | S | F0-02 | Interpolação **ausente** (`Lexer.java:213`); `${}` é config runtime. |
+| F0-05 | feito | S | — | `STATE.md` da Fase 0 atualizado. |
+| F0-06 | feito | M | — | Esqueleto: LICENSE, NOTICE, README, .gitignore, ci.yml, push inicial. |
 
 ## Fase 1 — Especificação
 
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
-| F1-01 | todo | L | F0 | `ESPECIFICACAO.md`: EBNF ≤120 linhas, keywords ≤20, regra de newline, tipos, semântica essencial. |
-| F1-02 | todo | M | F1-01 | `DECISOES.md`: registrar cada hipótese (repetição, ramificação, funções, type/record, val/var, lambdas, comentários, strings, imports, etc.). |
-| F1-03 | todo | L | F1-01 | 30+ exemplos `.hy` escritos à mão cobrindo todos os conceitos; relitura crítica. |
-| F1-04 | todo | S | F1-03 | Checklist orçamento: keywords, linhas de gramática, formas por conceito. |
+| F1-01 | fazendo | L | F0 | `ESPECIFICACAO.md` rascunho 0.1 (EBNF ~71 linhas, keywords 20, tipos, semântica). **Falta:** relitura crítica + congelar orçamento. |
+| F1-02 | fazendo | M | F1-01 | `DECISOES.md` D-HYD-001..013 registradas. Restam: wildcard import, `as`, `test`/`application` keywords, `finally`. |
+| F1-03 | fazendo | L | F1-01 | **39** exemplos `.hy` em `hydra/exemplos/`. Falta relitura crítica contra a EBNF (ex.: alias de tipo `type Inteiro = Int` pode não estar na gramática). |
+| F1-04 | todo | S | F1-03 | Checklist orçamento: keywords, linhas de gramática, formas por conceito — executar e registrar no STATE. |
 
 ## Fase 2 — Frontend
 
@@ -47,7 +47,7 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
-| F4-01 | todo | L | F3 | `hydra migrate` Kof→Hydra (`.kf` → extensão definida em F1). |
+| F4-01 | todo | L | F3 | `hydra migrate` Kof→Hydra (`.kf` → `.hy`). |
 | F4-02 | todo | M | F4-01 | Rodar sobre `examples/` e `training/examples/`; compilar; comparar saída. |
 
 ## Fase 5 — Stdlib
@@ -79,13 +79,13 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
-| INF-01 | todo | S | F0-06 | CI verde no primeiro skeleton (GitHub Actions JDK 25). |
+| INF-01 | feito | S | F0-06 | CI verde no skeleton (run 36952608349: structure + upstream-compile). |
 | INF-02 | todo | S | INF-01 | Badge de CI no README do Hydra. |
-| INF-03 | todo | S | F0-01 | Workaround shade kof-cli documentado; se necessário, fix local sem commit no upstream. |
+| INF-03 | feito | S | F0-01 | Workaround shade documentado (BLQ-01); não bloqueia Hydra. |
 
 ## Bloqueios registrados
 
 | ID | O quê | O que foi tentado | Próximo quando destravar |
 |---|---|---|---|
-| BLQ-01 | Shade `kof-cli` + `${revision}` | install com flatten, sed no m2, shade.skip | Editar pom local ou testar sem package; não bloqueia Fase 0–1. |
+| BLQ-01 | Shade `kof-cli` + `${revision}` | install, flatten, sed m2, shade.skip | Editar pom local ou testar sem package; não bloqueia Fase 0–1. |
 | BLQ-02 | Suíte nativa no macOS (toolchain) | — | Rodar suite no Linux/CI; tratar falhas native como ambientais. |

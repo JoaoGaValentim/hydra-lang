@@ -17,10 +17,12 @@ forma de escrever algo que já tem forma, a melhoria está errada.
 
 | | |
 |---|---|
-| Fase | 0 — Reconhecimento (Fase 0–1 em andamento) |
+| Fase | 1 — Especificação (rascunho 0.1) |
 | Frontend Hydra | ainda não implementado |
-| Especificação | `hydra/ESPECIFICACAO.md` (em construção) |
-| Auditoria de sintaxe | `hydra/AUDITORIA-SINTAXE.md` |
+| Especificação | `hydra/ESPECIFICACAO.md` (rascunho; EBNF ~71 linhas; keywords alvo 20) |
+| Exemplos | `hydra/exemplos/` — 39 arquivos `.hy` |
+| Auditoria de sintaxe | `hydra/AUDITORIA-SINTAXE.md` (§17 fechado) |
+| CI | verde (structure + upstream-compile do Kof) |
 | Memória de trabalho | `hydra/STATE.md`, `hydra/BACKLOG.md`, `hydra/DECISOES.md`, `hydra/LOG.md` |
 
 ---

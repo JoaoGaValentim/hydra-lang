@@ -385,15 +385,15 @@ Evidência de código: `TokenType.java` (130 linhas) + `Lexer.java`.
 
 ---
 
-## 17. Pendências desta auditoria (Fase 0 incompleta)
+## 17. Pendências desta auditoria (Fase 0)
 
-- [ ] Linha de base real de testes (`mvn test`) — em execução; resultados em `STATE.md`.
-- [ ] Leitura do código: `Lexer.java`, `Parser.java`, `ExpressionParser`, `TypeDeclarations`, `StatementParser`, IR e um backend completo.
-- [ ] Varredura de `learn/` e `training/` para formas sintáticas ainda não listadas (UI, web, db, concurrency examples).
-- [ ] Contagem precisa de keywords do `TokenType.java`.
-- [ ] Confirmar se interpolação de string existe em algum lugar do compiler (docs dizem não; código manda).
-- [ ] `examples/ci`, `examples/fullstack`, `examples/orm` para formas reais de programa.
-- [ ] Decisões pontuais registradas em `DECISOES.md` com alternativas descartadas.
+- [x] Linha de base real de testes — medida em `STATE.md` (808/155F/8E/26S no subconjunto focado; native inexecutável no macOS).
+- [x] Leitura do código: `Lexer.java`, `Parser.java`, `ExpressionParser`, `TypeDeclarations`, `StatementParser`, IR (`IRModule`, `IRMethod`, ops `Kof*`), `Backend` interface + `JvmBackend` (ASM).
+- [x] Contagem precisa de keywords: **62 tokens de forma-palavra** em `TokenType.java` (51 keyword-like de CLASS..AS + BOOLEAN_LITERAL/NULL_LITERAL + 9 tipos primitivos). Contextuais: `test`, `application`, `infra`, `sealed`, `in`. Mortos: `FUN`/`FN`/`FUNC`.
+- [x] Confirmação de interpolação de string: **não existe**. `Lexer.java:213` rejeita explicitamente (`"no interpolation either — concatenate with +"`). Os `${}` no código são interpolação de **arquivo de config** em runtime, não sintaxe de string.
+- [x] Exemplos canônicos de treino/idioms lidos (`control-flow`, `functions`, `records`, `hello.kf`, `classes.kf`).
+- [ ] Varredura completa de `learn/` e `examples/ci|fullstack|orm` para formas sintáticas ainda não listadas (próximo passo se exemplos de UI/web aparecerem na migração).
+- [x] Decisões pontuais registradas em `DECISOES.md` (D-HYD-001..010 + D-HYD-011 keywords + D-HYD-012 EBNF).
 
 ---
 

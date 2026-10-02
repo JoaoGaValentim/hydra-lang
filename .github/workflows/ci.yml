@@ -43,6 +43,8 @@ jobs:
             hydra/DECISOES.md
             hydra/LOG.md
             hydra/AUDITORIA-SINTAXE.md
+            hydra/ESPECIFICACAO.md
+            hydra/exemplos/01-hello.hy
             .github/workflows/ci.yml
           )
           missing=0

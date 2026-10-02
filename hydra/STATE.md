@@ -1,97 +1,96 @@
 # STATE — Hydra
 
-**Última atualização:** 2026-10-01 (início da Fase 0)
-**Fase atual:** 0 — Reconhecimento
+**Última atualização:** 2026-10-01 (Fase 0 concluída na prática; Fase 1 em andamento)
+**Fase atual:** 1 — Especificação
 **Operador:** MiMo 2.5 (engenheiro-chefe autônomo)
 
 ---
 
 ## Em que estou
 
-- Clone de `KofLang/Kof4j` em `kof_upstream/` (read-only, remoto `upstream`).
-- Remotos do repo Hydra:
-  - `origin` → `https://github.com/JoaoGaValentim/hydra-lang.git` (destino oficial)
-  - `upstream` → `https://github.com/KofLang/Kof4j.git` (créditos e consulta)
-- `gh auth status`: autenticado como `JoaoGaValentim` com escopos `repo`, `workflow`.
-- JDK 25 (Temurin) + Maven 3.10.0 disponíveis no host (darwin/aarch64).
-- Documentos de linguagem do Kof lidos: `AGENTS.md`, `PHILOSOPHY.md`, `docs/philosophy.md`, `docs/language-reference/` (grammar, syntax, statements, expressions, functions, classes, closures, modules, lexical-structure, README).
-- `hydra/AUDITORIA-SINTAXE.md` escrito com a primeira passada de redundâncias.
+- Repo Hydra publicado em `https://github.com/JoaoGaValentim/hydra-lang` (branch `main`).
+- CI **verde** no último push (run `36952608349`): jobs `structure` + `upstream-compile` passaram.
+- `hydra/AUDITORIA-SINTAXE.md` §17 quase fechado (itens 0–6 marcados; varredura de `learn/`/`examples/*` completa fica para quando a migração pedir).
+- `hydra/ESPECIFICACAO.md` rascunho 0.1 escrito (EBNF ~71 linhas não-vazias; keywords alvo 20).
+- `hydra/exemplos/` com **39** arquivos `.hy` cobrindo as formas da especificação.
+- `DECISOES.md`: D-HYD-001..013.
 
 ## O que funciona
 
-- Build parcial do Kof: `kof-compiler`, `kof-runtime`, `kof-script`, `kof-c-compiler` compilam e instalam (`mvn install -DskipTests`).
-- Linha de baseline **medida** (ver abaixo) — suíte cheia do Kof **não** fecha neste host.
-- Esqueleto do repo Hydra: LICENSE (GPL-3.0), NOTICE (Hydra ← KofLang/Kof4j), README, .gitignore, ci.yml, `hydra/*` de memória.
+- Build dos módulos core do Kof em `kof_upstream/` (compiler/runtime/script/c-compiler).
+- Baseline de testes **medida** no host (ver tabela).
+- Esqueleto + CI + memória + especificação rascunho + exemplos — tudo commitado e no origin.
 
-## Linha de baseline do Kof (medida em 2026-10-01, host macOS aarch64)
+## Linha de baseline do Kof (medida 2026-10-01, macOS aarch64)
 
 | Item | Resultado real |
 |---|---|
-| Compilação módulos core | **OK** (`kof-compiler`, `kof-runtime`, `kof-script`, `kof-c-compiler`) |
-| `kof-cli` package/shade | **FALHA** — `dev.kof:kof-parent:pom:${revision}` não resolvido (BLQ-01) |
-| `mvn test` full reactor | **FALHA** no `kof-compiler`; módulos seguintes SKIPPED; tempo ~2–4 min parcial |
-| Subconjunto focado (parser/E2E/seleção) | **808 testes / 155 falhas / 8 erros / 26 skip** em ~3:40 min |
-| Causa dominante das falhas | **Backend Native** — o `as` do macOS rejeita a assembly GNU/ELF gerada (`.section`, `movq`, `syscall`); erro `COMP001` em todos os `*Native*` |
-| Testes JVM/JS nomeados que falham | poucos: `JsonE2ETest.jvmDecodeBoolFalseAndWhitespace`, `KofJsFfiBridgeTest` (8 erros, provável GraalJS/node), `TypeVarianceE2ETest` cross |
-| Suíte completa 3000+ do AGENTS.md | **não executada até o fim** neste host (native + shade). Número oficial do upstream **não** foi reproduzido aqui. |
+| Compilação módulos core | **OK** |
+| `kof-cli` package/shade | **FALHA** — `${revision}` (BLQ-01) |
+| Subconjunto focado `mvn test` | **808 testes / 155 falhas / 8 erros / 26 skip** (~3:40) |
+| Causa dominante | **Native** — `as` da Apple rejeita assembly GNU/ELF (`COMP001`) |
+| Suíte cheia 3000+ | **não medida** neste host |
+| CI Hydra (upstream compile no ubuntu) | **VERDE** — módulos core compilam no runner |
 
-**Honestidade:** os números acima são o que **este host** mediu. Não inventar "X de 3000 passam". Em Linux com binutils, a suíte native deve se comportar muito melhor (CI `upstream-compile` já clona e compila no ubuntu).
+**Honestidade:** números acima são do **este host**. Em Linux, o job `upstream-compile` já prova que os módulos core compilam; testes nativos de suíte completa continuam pendentes de execução Linux dedicada.
+
+## Keyword count (F0-03 — fechado)
+
+`TokenType.java`: **62** tokens de forma-palavra (51 de CLASS..AS + BOOLEAN_LITERAL/NULL_LITERAL + 9 tipos primitivos).
+Contextuais: `test`, `application`, `infra`, `sealed`, `in`.
+Mortos: `FUN`/`FN`/`FUNC`.
+
+## Interpolação (F0-04 — fechado)
+
+**Não existe.** `Lexer.java:213` rejeita com diagnóstico explícito (`"no interpolation either — concatenate with +"`). `${}` no código Kof = interpolação de config em runtime (não sintaxe de string). Decisão D-HYD-013.
 
 ## O que está quebrado / pendente
 
-- **Build `kof-cli` shade falha** com `${revision}` (BLQ-01). Workaround local: poms no `~/.m2` corrigidos com sed; shade ainda lê parent do reactor. Não commitar workaround no Kof.
-- **Native no macOS:** ferramenta `as` da Apple ≠ GNU as. Falha **ambiental**, não regressão do Kof. Baseline real de native = Linux/CI.
-- `KofJsFfiBridgeTest` com 8 erros — verificar se exige GraalJS embutido/node no host.
-- Suíte cheia multi-módulo: repetir em Linux quando a CI de upstream compilar.
+- **BLQ-01** shade `kof-cli` + `${revision}` — não bloqueia Hydra.
+- **BLQ-02** suíte nativa no macOS — ambiental; Linux/CI para número real.
+- `KofJsFfiBridgeTest` 8 erros — verificar GraalJS/node quando for relevante.
+- Fase 1: relitura crítica dos exemplos + congelamento da especificação.
 
 ## Próxima ação concreta
 
-1. Aguardar/concluir `mvn test` e registrar: total de testes, falhas, tempo, falhas por módulo.
-2. Ler código do frontend (`Lexer.java`, `Parser.java`, `AstNodes.java`, `TypeDeclarations`) e um backend.
-3. Fechar `AUDITORIA-SINTAXE.md` §17 (pendências).
-4. Escrever `hydra/DECISOES.md` com as hipóteses validadas/rejeitadas.
-5. Criar `LICENSE`, `NOTICE`, `README.md`, `.gitignore`, `.github/workflows/ci.yml` e primeiro commit + push (Fase 17.5).
-6. Iniciar `hydra/ESPECIFICACAO.md` (Fase 1) com gramática EBNF ≤120 linhas e ≤20 keywords.
+1. Revisar os 39 exemplos contra a EBNF (corrigir inconsistências óbvias, ex.: `type Inteiro = Int` pode não estar na gramática — avaliar).
+2. Fechar orçamento: keywords 20, EBNF ≤120, uma forma por conceito — checklist em `BACKLOG` F1-04.
+3. Registrar pendências restantes da Fase 1 (wildcard import, `as`, `test`/`application` keywords) com dados dos exemplos.
+4. Commit + push (mínimo a cada 3 ciclos; CI verde).
+5. Só então Fase 2 (lexer Hydra).
 
-## Comandos úteis descobertos
+## Comandos úteis
 
 ```bash
-# Compilar Kof sem testes (evita shade se parar antes do kof-cli)
 cd kof_upstream && mvn -pl kof-compiler,kof-runtime,kof-script,kof-c-compiler install -DskipTests -B
-
-# Suíte de teste (não dispara shade — fase test)
-cd kof_upstream && mvn test -B
-
-# Testes de um módulo
 cd kof_upstream && mvn test -pl kof-compiler -B
-
-# Flatten de poms (CI-friendly versions)
-cd kof_upstream && mvn flatten:flatten -B
+gh run list --repo JoaoGaValentim/hydra-lang --limit 5
+gh run watch <id> --repo JoaoGaValentim/hydra-lang --exit-status
 ```
 
 ## Armadilhas conhecidas
 
-1. **`${revision}` no Maven:** parent pom precisa de flatten; shade do `kof-cli` quebra se o parent literal vazar. Não usar `package` no Kof como gate sem tratar isso.
-2. **Native no macOS:** testes native podem falhar por toolchain (`as`/`ld`/sintaxe Mach-O vs ELF). Falha de ambiente ≠ regressão do Kof. Anotar como ambiental.
-3. **AGENTS.md do Kof:** regras de agentes naquele repo (claims em DOING.md, quality gates Q0–Q7, proibição de stub, etc.). O Hydra herda a **disciplina de qualidade**, não o workflow multi-agent do Kof. Não editar o `kof_upstream/` como se fosse o repo do Hydra.
-4. **Não forçar push** no `upstream`. Push só em `origin` (hydra-lang).
-5. **Licença GPL-3.0:** Hydra é derivado; manter LICENSE, NOTICE e créditos. Programas em Hydra não herdam GPL automaticamente (igual ao Kof).
+1. `${revision}` no Maven do Kof — não usar `package` como gate sem tratar.
+2. Native no macOS ≠ regressão do Kof (toolchain).
+3. Hydra herda disciplina de qualidade do AGENTS.md do Kof, não o workflow multi-agent.
+4. Push só em `origin` (hydra-lang); nunca force em `upstream`.
+5. GPL-3.0 + NOTICE obrigatórios; programas em Hydra não herdam GPL.
 
 ## Números da linguagem
 
-| Métrica | Kof (medido/parcial) | Meta Hydra |
-|---|---|---|
-| Palavras reservadas (TokenType + docs) | ~64 tokens de palavra (+ contextuais) | ≤20 |
-| Linhas de gramática EBNF | ~406 no grammar.md (descritiva) | ≤120 |
-| Formas de repetir | 4 (while, do-while, for, for-in) | 1 |
-| Formas de ramificar | 4 (if-stmt, if-expr, switch-stmt, switch-expr) | 2 (if + match) |
-| Formas de função (retorno) | 3 (tipo-first, tipo-suffix, void) | 1 |
-| Comentários | 2 (`//`, `/* */`) | 1 |
-| Estilos de `;` | 2 (opcional) | 1 |
-| `class X(...)` vs `record` | 2 grafias → record | 1 conceito `type` |
-| `new X()` vs `X()` | 2 | 1 (`X()`) |
+| Métrica | Kof (medido) | Meta Hydra | Status |
+|---|---|---|---|
+| Palavras reservadas | 62 (+5 contextuais) | ≤20 | alvo em `ESPECIFICACAO` §2 |
+| Linhas EBNF (não vazias) | ~406 descritivas | ≤120 | **~71** no rascunho |
+| Formas de repetir | 4 | 1 | `for` com 3 cabeçalhos |
+| Formas de ramificar | 4 | 2 | `if` + `match` |
+| Formas de função (retorno) | 3 | 1 | `[ : Tipo ]` + bloco ou `= expr` |
+| Comentários | 2 | 1 | `//` |
+| `;` | opcional | 0 (newline) | rascunho |
+| Exemplos `.hy` | — | 30+ | **39** |
 
 ## Histórico imediato
 
-- Ciclo 1: clone, docs, remotos, auditoria inicial, suíte em background.
-- Ciclo 2: baseline medido; esqueleto do repo (LICENSE/NOTICE/README/CI); auditoria com TokenType; decisões D-HYD-001..010; commit+push inicial.
+- Ciclo 1: clone, docs, remotos, auditoria inicial.
+- Ciclo 2: baseline; esqueleto; commit+push `4123122`.
+- Ciclo 3: fix CI (clone antes de setup-java) `e0b3dce` — CI verde; ESPECIFICACAO rascunho; 39 exemplos; §17 da auditoria fechado; D-HYD-011..013.

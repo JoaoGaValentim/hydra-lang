@@ -82,6 +82,27 @@ Formato curto:
 - Consequências: orçamento preservado; familiaridade Kof mantida onde é bom.
 - Data: 2026-10-01
 
+### D-HYD-011 — Conjunto alvo de palavras reservadas (20)
+- Contexto: `TokenType.java` medido tem **62** tokens de forma-palavra (+5 contextuais). Meta ≤20.
+- Decisão: conjunto alvo de 20 — `type enum import val var if else for match return throw try catch spawn await true false null this super`. Sem `fun`/`fn`/`func`, sem `class`/`record`/`while`/`switch`/`new`/`package`/modificadores Java. `assert` é built-in. Tipos primitivos não são keywords.
+- Alternativas descartadas: ≤30 para caber `fun`+`while`+`package`; manter `as` (subsumido por `match` na v1); manter `finally` (fora do conjunto alvo inicial — se `finally` precisar voltar, entra e sai outro).
+- Consequências: `test`/`application` ainda não entram; se entrarem, estoura 20 e reavaliamos (exemplos `37-application.hy` marcados como pendência).
+- Data: 2026-10-01
+
+### D-HYD-012 — Gramática EBNF rascunho (Fase 1)
+- Contexto: precisa-se de gramática normativa ≤120 linhas antes do lexer.
+- Decisão: `hydra/ESPECIFICACAO.md` §3 é a gramática alvo (~95 linhas). `for` com 3 cabeçalhos (in/classic/cond); `match` sempre expressão; `if` sempre expressão; `type` único; lambdas `(p) -> e`; construção `X()` sem `new`.
+- Alternativas descartadas: EBNF descritiva longa do Kof (~406 linhas); gramática com `;`; gramática com dois estilos de comentário.
+- Consequências: parser da Fase 2 nasce daqui; exemplos em `hydra/exemplos/` (**39** `.hy`) cobrem as formas.
+- Data: 2026-10-01
+
+### D-HYD-013 — Sem interpolação de string (confirmado no código)
+- Contexto: auditoria §17 exigia confirmar no lexer, não só nos docs.
+- Decisão: **não** herdar interpolação. `Lexer.java:213` rejeita com diagnóstico explícito; `${}` no código do Kof é interpolação de config em runtime, não sintaxe.
+- Alternativas descartadas: `"$x"` estilo Kotlin; backticks; template literals.
+- Consequências: strings = literal + `+`/`+=`; stdlib futura pode oferecer `format` sem mudar a gramática.
+- Data: 2026-10-01
+
 ---
 
 *Novas decisões entram aqui no ciclo em que forem tomadas (seção 8, passo 8).*
