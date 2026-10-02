@@ -121,13 +121,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Clone Kof upstream (read-only reference)
+        run: git clone --depth 1 https://github.com/KofLang/Kof4j.git kof_upstream
+
       - name: Setup JDK 25 (Temurin)
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '25'
           cache: maven
-          cache-dependency-path: compiler/pom.xml
+          cache-dependency-path: |
+            compiler/pom.xml
+            kof_upstream/pom.xml
+            kof_upstream/**/pom.xml
+
+      - name: Install Kof compiler (parity test dep)
+        working-directory: kof_upstream
+        run: mvn -B -pl kof-compiler,kof-runtime install -DskipTests
 
       - name: Test hydra-compiler
         working-directory: compiler

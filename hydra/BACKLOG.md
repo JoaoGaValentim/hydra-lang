@@ -30,9 +30,9 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
 | F2-01 | feito | L | F1 | Lexer Hydra (`compiler/`) — 12 testes. |
-| F2-02 | feito | L | F2-01 | Parser + AST — unit, fun (bloco/`= expr`/abstrato), type, enum, stmts, exprs, lambda, match com guardas/destructuring. 21 testes; 33/33 total. |
+| F2-02 | feito | L | F2-01 | Parser + AST — unit, fun (bloco/`= expr`/abstrato), type, enum, stmts, exprs, lambda, match com guardas/destructuring. 21 testes. |
 | F2-03 | fazendo | M | F2-02 | Diagnósticos com linha/coluna (SyntaxError); faltam casos de borda e sugestões. |
-| F2-04 | fazendo | M | F2-02 | Prova: 34 exemplos `.hy` parseiam; falta comparar AST com Kof. |
+| F2-04 | feito | L | F2-02 | Paridade AST Hydra ↔ Kof: `ParityTest` 9/9 + `hydra/PARITY.md`; dep `kof-compiler` test-scope; CI instala Kof antes dos testes Hydra. |
 
 ## Fase 3 — IR e backends
 

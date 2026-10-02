@@ -23,6 +23,19 @@
       <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
+    <!-- Parity F2-04: parser Kof como referência de AST (install local/CI) -->
+    <dependency>
+      <groupId>dev.kof</groupId>
+      <artifactId>kof-compiler</artifactId>
+      <version>0.5.0-beta</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>dev.kof</groupId>
+      <artifactId>kof-runtime</artifactId>
+      <version>0.5.0-beta</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
