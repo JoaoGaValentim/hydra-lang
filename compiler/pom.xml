@@ -23,6 +23,12 @@
       <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
+    <!-- Backend JVM (F3-02): emissão de bytecode -->
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm</artifactId>
+      <version>9.7.1</version>
+    </dependency>
     <!-- Parity F2-04: parser Kof como referência de AST (install local/CI) -->
     <dependency>
       <groupId>dev.kof</groupId>

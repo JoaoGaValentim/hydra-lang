@@ -119,7 +119,7 @@ class IrTest {
                 """);
         Method div = method(m, "dividir");
         String shape = Ir.shape(m);
-        assertTrue(shape.contains("binary(==; Bool)"), shape);
+        assertTrue(shape.contains("binary(==; Int)"), shape);
         assertTrue(shape.contains("jumpIfFalse("), shape);
         assertTrue(shape.contains("throw"), shape);
         assertTrue(shape.contains("binary(/; Int)"), shape);
@@ -225,7 +225,7 @@ class IrTest {
         String shape = Ir.shape(m);
         assertTrue(shape.contains("jump("), shape);
         assertTrue(shape.contains("jumpIfFalse("), shape);
-        assertTrue(shape.contains("binary(<; Bool)"), shape);
+        assertTrue(shape.contains("binary(<; Int)"), shape);
         assertTrue(shape.contains("binary(+; Int)"), shape);
     }
 

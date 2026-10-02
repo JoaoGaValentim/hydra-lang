@@ -56,6 +56,15 @@ type-decl, aridade, for clássico, imports. Shape canônico via `Ir.shape(module
 | Item | Estado |
 |---|---|
 | F3-01 IR + lowering v1 | **feito** |
-| F3-02 backend JVM mínimo | todo |
+| F3-02 backend JVM mínimo | **feito** — E2E 7/7 (`JvmBackendE2ETest`) |
 | F3-03 Native/JS | todo |
 | F3-04 paridade de alvos | todo |
+
+## Backend JVM (F3-02)
+
+- ASM 9.7.1; classes `Main` + `<init>` + métodos estáticos.
+- `Int`→`long`, `Float`→`double`, `Bool`→`int`, `String`→`String`.
+- `println`/`print` → `System.out` (Int/Float via scratch local).
+- `+` de String → `String.concat`.
+- try/catch → `visitTryCatchBlock(Throwable)`.
+- `Binary.operandType` = tipo dos operandos (comparações em Int usam `LCMP`).

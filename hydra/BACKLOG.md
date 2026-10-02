@@ -39,7 +39,7 @@ Status: `todo` | `fazendo` | `bloqueado` | `feito`
 | ID | Status | Tamanho | Deps | Descrição |
 |---|---|---|---|---|
 | F3-01 | feito | L | F2 | IR + lowering: `hydra.compiler.ir.{Ir,IrBuilder}`; contrato em `hydra/IR.md`; `IrTest` 10/10. |
-| F3-02 | todo | L | F3-01 | Programa mínimo ponta a ponta em JVM (backend a partir de `Ir.Module`). |
+| F3-02 | feito | L | F3-01 | Backend JVM mínimo: `hydra.compiler.backend.JvmBackend` + `Compiler`; E2E 7/7 (hello, aritmética, funções, if/try, string, for, CAFEBABE). |
 | F3-03 | todo | M | F3-02 | Native e JS para o mesmo programa. |
 | F3-04 | todo | M | F3-02 | Suíte de paridade entre alvos. |
 

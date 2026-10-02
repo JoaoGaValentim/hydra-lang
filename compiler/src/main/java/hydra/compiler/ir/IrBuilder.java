@@ -333,7 +333,11 @@ public final class IrBuilder {
         } else if (e instanceof Ast.BinaryExpr b) {
             lowerExpr(b.left(), ctx);
             lowerExpr(b.right(), ctx);
-            ctx.emit(new Ir.Binary(b.op(), binType(b.op(), typeOfExpr(b.left(), ctx), typeOfExpr(b.right(), ctx))));
+            Ir.Type lt = typeOfExpr(b.left(), ctx);
+            Ir.Type rt = typeOfExpr(b.right(), ctx);
+            // Binary.operandType = tipo dos operandos (não o resultado)
+            Ir.Type operand = operandType(b.op(), lt, rt);
+            ctx.emit(new Ir.Binary(b.op(), operand));
         } else if (e instanceof Ast.UnaryExpr u) {
             lowerExpr(u.operand(), ctx);
             ctx.emit(new Ir.Unary(u.op(), typeOfExpr(u.operand(), ctx)));
@@ -494,7 +498,7 @@ public final class IrBuilder {
             Ir.Type recv = typeOfExpr(fe.receiver(), ctx);
             return typeOf.getOrDefault(recv.name() + "." + fe.name(), Ir.Type.ANY);
         }
-        if (e instanceof Ast.AssignExpr a) return typeOfExpr(a.target(), ctx);
+        if (e instanceof Ast.AssignExpr a) return Ir.Type.VOID; // store não deixa valor
         if (e instanceof Ast.IfExpr ie) return typeOfExpr(ie.thenExpr(), ctx);
         if (e instanceof Ast.MatchExpr) return Ir.Type.ANY;
         if (e instanceof Ast.LambdaExpr) return new Ir.Type("Function");
@@ -515,6 +519,15 @@ public final class IrBuilder {
             case "==", "!=", "<", ">", "<=", ">=", "&&", "||" -> Ir.Type.BOOL;
             default -> Ir.Type.ANY;
         };
+    }
+
+    /** Tipo dos operandos para a op (para o backend JVM emitir os opcodes certos). */
+    private static Ir.Type operandType(String op, Ir.Type l, Ir.Type r) {
+        if ("&&".equals(op) || "||".equals(op)) return Ir.Type.BOOL;
+        if (Ir.Type.STRING.equals(l) || Ir.Type.STRING.equals(r)) return Ir.Type.STRING;
+        if (Ir.Type.FLOAT.equals(l) || Ir.Type.FLOAT.equals(r)) return Ir.Type.FLOAT;
+        if (Ir.Type.BOOL.equals(l) && Ir.Type.BOOL.equals(r)) return Ir.Type.BOOL;
+        return Ir.Type.INT;
     }
 
     private static Ir.Type irType(Ast.TypeRef t) {
