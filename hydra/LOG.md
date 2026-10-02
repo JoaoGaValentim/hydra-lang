@@ -19,7 +19,7 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 - **Ciclo 11** | Fase 3 | Feito: **F3-03+F3-04 fechados** — `JsBackend` (switch(pc), sem goto); E2E Node (hello/arith/fun/for/string); `TargetParityTest` JVM≡JS; Native documentado **BLQ-02** (macOS); **84/84**; commit `a528934`; CI `36961027928` verde. | Verificado: `mvn -B test` → BUILD SUCCESS **84/84**; `gh run watch` → structure ✓ + upstream-compile ✓ + hydra-compiler ✓. | Decisão: **D-HYD-022** máquina de estados JS; **D-HYD-023** Native só em Linux; try/catch JS na v2. | Próximo: Fase 4 (migração Kof→Hydra) ou backend JVM v2 (type/enum/lambda).
 - **Ciclo 12** | Fase 4 | Feito: **F4-01+F4-02 fechados** — `Migrator` (AST Kof→Hydra + gate parse + MIG0xx); `MigrateTest` 15/15; `MigrateCorpusTest` 5/5 sobre `training/examples` + golden; Kof em compile scope; **104/104**; commit `35f18f8`; CI `37017668287` verde. | Verificado: `mvn -B test` → BUILD SUCCESS **104/104**; `gh run watch` → structure ✓ + upstream-compile ✓ + hydra-compiler ✓. | Decisão: **D-HYD-024** AST-walk + gate + diagnósticos honestos; compat só em tooling. | Próximo: Fase 5 stdlib ou F6 ferramentas (`fmt`/`run`/CLI migrate).
 - **Ciclo 13** | Fase 6 | Feito: **F6-01 parcial fechado** — CLI `hydra check|run|migrate|version` (`Cli.java` + `bin/hydra`); `CliTest` 10/10; jar Main-Class; **114/114**; commit `1617e5f`; CI `37018674322` verde. | Verificado: `mvn -B test` → BUILD SUCCESS **114/114**; `gh run watch` → structure ✓ + upstream-compile ✓ + hydra-compiler ✓. | Decisão: **D-HYD-025** CLI só com o que o pipeline prova; fmt/new/test deferred (F6-01b). | Próximo: F6-01b (`fmt` reprint canônico) ou F5 stdlib.
-- **Ciclo 14** | Fase 6 | Feito: **F6-01b fechado** — `Formatter` reprint canônico da AST + `hydra fmt` (D-HYD-026); `FormatterTest` 57/57; CLI fmt em `CliTest` 15/15; **176/176**. | Verificado: `mvn -B test` → BUILD SUCCESS **176/176**; `fmt(fmt(x))==fmt(x)` no corpus; `//` preservado por linha. | Decisão: **D-HYD-026** fmt = AST-printer com comentários por linha; `for x in` sem val. | Próximo: F6-01b restante (`new`/`test`) ou F5 stdlib.
+- **Ciclo 14** | Fase 6 | Feito: **F6-01b fechado** — `Formatter` reprint canônico da AST + `hydra fmt` (D-HYD-026); `FormatterTest` 57/57; CLI fmt em `CliTest` 15/15; **176/176**; commit `cfe31bc`; CI `37021269907` verde. | Verificado: `mvn -B test` → BUILD SUCCESS **176/176**; `fmt(fmt(x))==fmt(x)` no corpus; `//` preservado por linha. | Decisão: **D-HYD-026** fmt = AST-printer com comentários por linha; `for x in` sem val. | Próximo: F6-01b restante (`new`/`test`) ou F5 stdlib.
 
 ### Métricas
 
@@ -41,7 +41,8 @@ Diário cronológico. Uma linha por ciclo. Métricas a cada ~10/30 ciclos.
 | Migração Kof | **15+5** testes (unit + corpus training/golden) |
 | Formatter | **57** testes (idempotência + comentários + corpus) |
 | Códigos de erro | **HYP000–HYP013** · **MIG001–MIG015** |
-| Commits | `4123122` · `e0b3dce` · `3dd5a68` · `7dcac62` · `b905c21` · `c831d37` · `973e3f6` · `f1766b2` · `6c4d58e` · `a1aae9a` · `1082bff` · `b835f35` · `ff95ad5` · `1653ccf` · `4a377de` · `a528934` · `f2fef2b` · `35f18f8` · `6f05c4f` · `1617e5f` · `fa35a85` |
+| Commits | `4123122` · `e0b3dce` · `3dd5a68` · `7dcac62` · `b905c21` · `c831d37` · `973e3f6` · `f1766b2` · `6c4d58e` · `a1aae9a` · `1082bff` · `b835f35` · `ff95ad5` · `1653ccf` · `4a377de` · `a528934` · `f2fef2b` · `35f18f8` · `6f05c4f` · `1617e5f` · `fa35a85` · `cfe31bc` |
+| CI runs verdes (Fase 6) | `37018674322` (F6-01) · `37021269907` (F6-01b) |
 
 ## Limites v1 (honestos)
 
